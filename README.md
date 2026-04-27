@@ -119,13 +119,36 @@ python eval_td3_lqr_planner_obstacle.py ^
 
 ### Визуализация в GUI
 
+**Stage 1 (пустая арена):**
+
 ```bash
 python visual_planned_husky.py ^
     --model models/husky_td3_v1_cont_best/best_model.zip ^
-    --planner-N 3
+    --episodes 3
 ```
 
-Откроется окно PyBullet с роботом, его траекторией и waypoint-маркерами. Управление — клавишами в окне (см. подсказку в консоли).
+**Stage 2a (с препятствиями) — финальная модель v3:**
+
+```bash
+python visual_obstacle_husky.py ^
+    --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip ^
+    --episodes 3 --seed-base 300
+```
+
+**Stage 2a с планировщиком (главный результат статьи):**
+
+```bash
+python visual_obstacle_husky.py ^
+    --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip ^
+    --episodes 3 --seed-base 300 --planner --n-waypoints 3
+```
+
+В окне PyBullet будут видны:
+- красный цилиндр — финальная цель;
+- зелёный цилиндр — активная подцель планировщика (только в режиме `--planner`);
+- синие — пройденные подцели, серые — ещё не активированные;
+- жёлтые лучи из робота — лидар (только Stage 2a);
+- цилиндры случайной высоты — препятствия (только Stage 2a).
 
 ---
 
@@ -172,7 +195,8 @@ dccn-husky-rl/
 ├── eval_td3_lqr.py                # eval только LQR-residual
 ├── eval_td3_lqr_planner.py        # full ablation Stage 1
 ├── eval_td3_lqr_planner_obstacle.py  # full ablation Stage 2a
-├── visual_planned_husky.py        # GUI-визуализация
+├── visual_planned_husky.py        # GUI-визуализация Stage 1
+├── visual_obstacle_husky.py       # GUI-визуализация Stage 2a (с лидаром и препятствиями)
 ├── plot_trajectories.py           # графики траекторий Stage 1
 ├── plot_trajectories_obstacle.py  # графики траекторий Stage 2a
 ├── make_report_figures.py         # сводные графики (training curves, planner effect)

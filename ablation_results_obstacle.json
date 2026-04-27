@@ -1,0 +1,1014 @@
+{
+  "config": {
+    "model": "models/husky_obstacle_td3_v1_best/best_model.zip",
+    "seeds": [
+      300,
+      301,
+      302,
+      303,
+      304,
+      305,
+      306,
+      307,
+      308,
+      309
+    ],
+    "alpha": 0.2,
+    "switch_radius": 0.8,
+    "n_list": [
+      2,
+      3,
+      5
+    ],
+    "stage": "2a (obstacles + lidar)"
+  },
+  "summaries": [
+    {
+      "label": "TD3 baseline (obstacles)",
+      "n_episodes": 10,
+      "success_rate": "9/10",
+      "collision_rate": "0/10",
+      "reward_mean": -159.40042711524438,
+      "reward_std": 256.1147143412083,
+      "steps_mean": 102.6,
+      "steps_std": 132.87001166553722,
+      "smoothness_mean": 0.3936672225594521,
+      "smoothness_std": 0.20926198360429157,
+      "min_lidar_mean": 0.2455420434474945
+    },
+    {
+      "label": "TD3 + LQR (alpha=0.2)",
+      "n_episodes": 10,
+      "success_rate": "9/10",
+      "collision_rate": "0/10",
+      "reward_mean": -163.4028878229046,
+      "reward_std": 266.1564223047457,
+      "steps_mean": 102.6,
+      "steps_std": 132.82861137571226,
+      "smoothness_mean": 0.3798394545912743,
+      "smoothness_std": 0.20014495828941087,
+      "min_lidar_mean": 0.19662675708532334
+    },
+    {
+      "label": "TD3 + LQR + Planner (N=2, alpha=0.2)",
+      "n_episodes": 10,
+      "success_rate": "9/10",
+      "collision_rate": "0/10",
+      "reward_mean": -154.19703388196498,
+      "reward_std": 240.9713649936899,
+      "steps_mean": 102.1,
+      "steps_std": 132.93114759152573,
+      "smoothness_mean": 0.37515397518873217,
+      "smoothness_std": 0.16367603834564495,
+      "min_lidar_mean": 0.2210761144757271
+    },
+    {
+      "label": "TD3 + LQR + Planner (N=3, alpha=0.2)",
+      "n_episodes": 10,
+      "success_rate": "10/10",
+      "collision_rate": "0/10",
+      "reward_mean": -81.79741300221075,
+      "reward_std": 53.58938848307267,
+      "steps_mean": 60.0,
+      "steps_std": 11.781341180018513,
+      "smoothness_mean": 0.27573741525411605,
+      "smoothness_std": 0.061610821438667564,
+      "min_lidar_mean": 0.24564681202173233
+    },
+    {
+      "label": "TD3 + LQR + Planner (N=5, alpha=0.2)",
+      "n_episodes": 10,
+      "success_rate": "10/10",
+      "collision_rate": "0/10",
+      "reward_mean": -78.69700903681166,
+      "reward_std": 48.276757273228704,
+      "steps_mean": 58.7,
+      "steps_std": 8.295179322956196,
+      "smoothness_mean": 0.3365609377622604,
+      "smoothness_std": 0.10411493516114272,
+      "min_lidar_mean": 0.19657218754291533
+    }
+  ],
+  "episodes": {
+    "td3": [
+      {
+        "steps": 62,
+        "reward": -91.53904018751986,
+        "reason": "goal_reached",
+        "final_distance": 0.3465948221945333,
+        "start_distance": 4.011110305786133,
+        "goal": [
+          3.730112075805664,
+          1.474879503250122
+        ],
+        "smoothness": 0.28980904817581177,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24479427933692932,
+        "n_obstacles": 5,
+        "seed": 300
+      },
+      {
+        "steps": 73,
+        "reward": -97.96208643066515,
+        "reason": "goal_reached",
+        "final_distance": 0.3897586115592108,
+        "start_distance": 3.2022221088409424,
+        "goal": [
+          -0.9840688109397888,
+          -3.047266721725464
+        ],
+        "smoothness": 0.37962567806243896,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2459733933210373,
+        "n_obstacles": 4,
+        "seed": 301
+      },
+      {
+        "steps": 68,
+        "reward": -142.65732318120172,
+        "reason": "goal_reached",
+        "final_distance": 0.38177723305520506,
+        "start_distance": 4.279239177703857,
+        "goal": [
+          1.1692019701004028,
+          4.11641263961792
+        ],
+        "smoothness": 0.2057563215494156,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2459733635187149,
+        "n_obstacles": 3,
+        "seed": 302
+      },
+      {
+        "steps": 44,
+        "reward": -9.990532624053216,
+        "reason": "goal_reached",
+        "final_distance": 0.3463171603526869,
+        "start_distance": 2.6432971954345703,
+        "goal": [
+          2.290449857711792,
+          -1.3194164037704468
+        ],
+        "smoothness": 0.38098374009132385,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24514542520046234,
+        "n_obstacles": 4,
+        "seed": 303
+      },
+      {
+        "steps": 500,
+        "reward": -913.8074631586821,
+        "reason": "timeout",
+        "final_distance": 1.0230874333349704,
+        "start_distance": 3.6859686374664307,
+        "goal": [
+          -2.9663872718811035,
+          2.187901258468628
+        ],
+        "smoothness": 0.7688312530517578,
+        "success": false,
+        "collision": false,
+        "min_lidar_seen": 0.245847687125206,
+        "n_obstacles": 4,
+        "seed": 304
+      },
+      {
+        "steps": 66,
+        "reward": -128.400930972013,
+        "reason": "goal_reached",
+        "final_distance": 0.37153438126254124,
+        "start_distance": 4.1456804275512695,
+        "goal": [
+          1.483826994895935,
+          3.8710365295410156
+        ],
+        "smoothness": 0.2585313022136688,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2459690272808075,
+        "n_obstacles": 3,
+        "seed": 305
+      },
+      {
+        "steps": 43,
+        "reward": -2.4837834234757707,
+        "reason": "goal_reached",
+        "final_distance": 0.37828331613198257,
+        "start_distance": 2.174272060394287,
+        "goal": [
+          0.6828193068504333,
+          -2.0642714500427246
+        ],
+        "smoothness": 0.22356107831001282,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2450733780860901,
+        "n_obstacles": 4,
+        "seed": 306
+      },
+      {
+        "steps": 63,
+        "reward": -108.51087863214717,
+        "reason": "goal_reached",
+        "final_distance": 0.35904867932621765,
+        "start_distance": 3.898761034011841,
+        "goal": [
+          1.7988908290863037,
+          3.458949089050293
+        ],
+        "smoothness": 0.2517191767692566,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24588479101657867,
+        "n_obstacles": 3,
+        "seed": 307
+      },
+      {
+        "steps": 63,
+        "reward": -90.7250990906222,
+        "reason": "goal_reached",
+        "final_distance": 0.3667550795784231,
+        "start_distance": 4.0590128898620605,
+        "goal": [
+          3.8712522983551025,
+          1.2202415466308594
+        ],
+        "smoothness": 0.35751578211784363,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24479421973228455,
+        "n_obstacles": 3,
+        "seed": 308
+      },
+      {
+        "steps": 44,
+        "reward": -7.9271334520635435,
+        "reason": "goal_reached",
+        "final_distance": 0.36293849439036185,
+        "start_distance": 2.700637102127075,
+        "goal": [
+          -2.5000154972076416,
+          -1.021451711654663
+        ],
+        "smoothness": 0.8203388452529907,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2459648698568344,
+        "n_obstacles": 5,
+        "seed": 309
+      }
+    ],
+    "td3_lqr": [
+      {
+        "steps": 62,
+        "reward": -89.87520901327713,
+        "reason": "goal_reached",
+        "final_distance": 0.34693575954399947,
+        "start_distance": 4.011110305786133,
+        "goal": [
+          3.730112075805664,
+          1.474879503250122
+        ],
+        "smoothness": 0.335917592048645,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2457883507013321,
+        "n_obstacles": 5,
+        "seed": 300
+      },
+      {
+        "steps": 71,
+        "reward": -97.33840311514568,
+        "reason": "goal_reached",
+        "final_distance": 0.3751881055543151,
+        "start_distance": 3.2022221088409424,
+        "goal": [
+          -0.9840688109397888,
+          -3.047266721725464
+        ],
+        "smoothness": 0.36471426486968994,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2459733933210373,
+        "n_obstacles": 4,
+        "seed": 301
+      },
+      {
+        "steps": 68,
+        "reward": -143.1531926553572,
+        "reason": "goal_reached",
+        "final_distance": 0.3501232908603193,
+        "start_distance": 4.279239177703857,
+        "goal": [
+          1.1692019701004028,
+          4.11641263961792
+        ],
+        "smoothness": 0.22310113906860352,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.0,
+        "n_obstacles": 3,
+        "seed": 302
+      },
+      {
+        "steps": 45,
+        "reward": -14.399156750985327,
+        "reason": "goal_reached",
+        "final_distance": 0.32942631673517214,
+        "start_distance": 2.6432971954345703,
+        "goal": [
+          2.290449857711792,
+          -1.3194164037704468
+        ],
+        "smoothness": 0.40045830607414246,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.0,
+        "n_obstacles": 4,
+        "seed": 303
+      },
+      {
+        "steps": 500,
+        "reward": -948.8096282264569,
+        "reason": "timeout",
+        "final_distance": 1.112863924902506,
+        "start_distance": 3.6859686374664307,
+        "goal": [
+          -2.9663872718811035,
+          2.187901258468628
+        ],
+        "smoothness": 0.8213911056518555,
+        "success": false,
+        "collision": false,
+        "min_lidar_seen": 0.24578142166137695,
+        "n_obstacles": 4,
+        "seed": 304
+      },
+      {
+        "steps": 66,
+        "reward": -129.86825330385557,
+        "reason": "goal_reached",
+        "final_distance": 0.39676896898676545,
+        "start_distance": 4.1456804275512695,
+        "goal": [
+          1.483826994895935,
+          3.8710365295410156
+        ],
+        "smoothness": 0.2544088363647461,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24596922099590302,
+        "n_obstacles": 3,
+        "seed": 305
+      },
+      {
+        "steps": 43,
+        "reward": -2.2247179473322802,
+        "reason": "goal_reached",
+        "final_distance": 0.38939753827268964,
+        "start_distance": 2.174272060394287,
+        "goal": [
+          0.6828193068504333,
+          -2.0642714500427246
+        ],
+        "smoothness": 0.21558411419391632,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24503271281719208,
+        "n_obstacles": 4,
+        "seed": 306
+      },
+      {
+        "steps": 63,
+        "reward": -108.99809353610708,
+        "reason": "goal_reached",
+        "final_distance": 0.39487120924684294,
+        "start_distance": 3.898761034011841,
+        "goal": [
+          1.7988908290863037,
+          3.458949089050293
+        ],
+        "smoothness": 0.19115793704986572,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24596907198429108,
+        "n_obstacles": 3,
+        "seed": 307
+      },
+      {
+        "steps": 63,
+        "reward": -89.7904953264163,
+        "reason": "goal_reached",
+        "final_distance": 0.33614274923436627,
+        "start_distance": 4.0590128898620605,
+        "goal": [
+          3.8712522983551025,
+          1.2202415466308594
+        ],
+        "smoothness": 0.3044658303260803,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2457883059978485,
+        "n_obstacles": 3,
+        "seed": 308
+      },
+      {
+        "steps": 45,
+        "reward": -9.57172835411292,
+        "reason": "goal_reached",
+        "final_distance": 0.36926254075650383,
+        "start_distance": 2.700637102127075,
+        "goal": [
+          -2.5000154972076416,
+          -1.021451711654663
+        ],
+        "smoothness": 0.6871954202651978,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24596509337425232,
+        "n_obstacles": 5,
+        "seed": 309
+      }
+    ],
+    "td3_lqr_planner_n2": [
+      {
+        "steps": 59,
+        "reward": -87.21122249428143,
+        "reason": "goal_reached",
+        "final_distance": 0.3466184641384161,
+        "start_distance": 4.011110305786133,
+        "goal": [
+          3.730112075805664,
+          1.474879503250122
+        ],
+        "smoothness": 0.21636821329593658,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2458268404006958,
+        "n_obstacles": 5,
+        "max_wp_idx": 1,
+        "n_waypoints": 2,
+        "seed": 300
+      },
+      {
+        "steps": 66,
+        "reward": -90.40359296097203,
+        "reason": "goal_reached",
+        "final_distance": 0.38376921761145544,
+        "start_distance": 3.2022221088409424,
+        "goal": [
+          -0.9840688109397888,
+          -3.047266721725464
+        ],
+        "smoothness": 0.35354626178741455,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24596509337425232,
+        "n_obstacles": 4,
+        "max_wp_idx": 1,
+        "n_waypoints": 2,
+        "seed": 301
+      },
+      {
+        "steps": 69,
+        "reward": -144.96580050395482,
+        "reason": "goal_reached",
+        "final_distance": 0.35404119564959563,
+        "start_distance": 4.279239177703857,
+        "goal": [
+          1.1692019701004028,
+          4.11641263961792
+        ],
+        "smoothness": 0.18821391463279724,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24544715881347656,
+        "n_obstacles": 3,
+        "max_wp_idx": 1,
+        "n_waypoints": 2,
+        "seed": 302
+      },
+      {
+        "steps": 46,
+        "reward": -18.038095961853926,
+        "reason": "goal_reached",
+        "final_distance": 0.3650247746680204,
+        "start_distance": 2.6432971954345703,
+        "goal": [
+          2.290449857711792,
+          -1.3194164037704468
+        ],
+        "smoothness": 0.5704052448272705,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24491146206855774,
+        "n_obstacles": 4,
+        "max_wp_idx": 1,
+        "n_waypoints": 2,
+        "seed": 303
+      },
+      {
+        "steps": 500,
+        "reward": -862.5635021540919,
+        "reason": "timeout",
+        "final_distance": 0.9218670838270392,
+        "start_distance": 3.6859686374664307,
+        "goal": [
+          -2.9663872718811035,
+          2.187901258468628
+        ],
+        "smoothness": 0.6611302495002747,
+        "success": false,
+        "collision": false,
+        "min_lidar_seen": 0.24559105932712555,
+        "n_obstacles": 4,
+        "max_wp_idx": 1,
+        "n_waypoints": 2,
+        "seed": 304
+      },
+      {
+        "steps": 67,
+        "reward": -132.09309602878818,
+        "reason": "goal_reached",
+        "final_distance": 0.39476445969102325,
+        "start_distance": 4.1456804275512695,
+        "goal": [
+          1.483826994895935,
+          3.8710365295410156
+        ],
+        "smoothness": 0.25823861360549927,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24596808850765228,
+        "n_obstacles": 3,
+        "max_wp_idx": 1,
+        "n_waypoints": 2,
+        "seed": 305
+      },
+      {
+        "steps": 44,
+        "reward": -3.2743867279082934,
+        "reason": "goal_reached",
+        "final_distance": 0.3424195910447516,
+        "start_distance": 2.174272060394287,
+        "goal": [
+          0.6828193068504333,
+          -2.0642714500427246
+        ],
+        "smoothness": 0.2998441755771637,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.0,
+        "n_obstacles": 4,
+        "max_wp_idx": 1,
+        "n_waypoints": 2,
+        "seed": 306
+      },
+      {
+        "steps": 64,
+        "reward": -112.11282261326993,
+        "reason": "goal_reached",
+        "final_distance": 0.390059904088474,
+        "start_distance": 3.898761034011841,
+        "goal": [
+          1.7988908290863037,
+          3.458949089050293
+        ],
+        "smoothness": 0.2143804430961609,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2458219826221466,
+        "n_obstacles": 3,
+        "max_wp_idx": 1,
+        "n_waypoints": 2,
+        "seed": 307
+      },
+      {
+        "steps": 60,
+        "reward": -85.0698333049539,
+        "reason": "goal_reached",
+        "final_distance": 0.37868314287022836,
+        "start_distance": 4.0590128898620605,
+        "goal": [
+          3.8712522983551025,
+          1.2202415466308594
+        ],
+        "smoothness": 0.4122680127620697,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24526362121105194,
+        "n_obstacles": 3,
+        "max_wp_idx": 1,
+        "n_waypoints": 2,
+        "seed": 308
+      },
+      {
+        "steps": 46,
+        "reward": -6.237986069575413,
+        "reason": "goal_reached",
+        "final_distance": 0.3503699917774621,
+        "start_distance": 2.700637102127075,
+        "goal": [
+          -2.5000154972076416,
+          -1.021451711654663
+        ],
+        "smoothness": 0.5771446228027344,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.245965838432312,
+        "n_obstacles": 5,
+        "max_wp_idx": 1,
+        "n_waypoints": 2,
+        "seed": 309
+      }
+    ],
+    "td3_lqr_planner_n3": [
+      {
+        "steps": 59,
+        "reward": -86.22802432408922,
+        "reason": "goal_reached",
+        "final_distance": 0.371745146020349,
+        "start_distance": 4.011110305786133,
+        "goal": [
+          3.730112075805664,
+          1.474879503250122
+        ],
+        "smoothness": 0.3374865651130676,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24510188400745392,
+        "n_obstacles": 5,
+        "max_wp_idx": 2,
+        "n_waypoints": 3,
+        "seed": 300
+      },
+      {
+        "steps": 70,
+        "reward": -91.45581158265247,
+        "reason": "goal_reached",
+        "final_distance": 0.39641676523174374,
+        "start_distance": 3.2022221088409424,
+        "goal": [
+          -0.9840688109397888,
+          -3.047266721725464
+        ],
+        "smoothness": 0.14545562863349915,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24596543610095978,
+        "n_obstacles": 4,
+        "max_wp_idx": 2,
+        "n_waypoints": 3,
+        "seed": 301
+      },
+      {
+        "steps": 70,
+        "reward": -148.21970705413955,
+        "reason": "goal_reached",
+        "final_distance": 0.3368552570299383,
+        "start_distance": 4.279239177703857,
+        "goal": [
+          1.1692019701004028,
+          4.11641263961792
+        ],
+        "smoothness": 0.2491437941789627,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2459733635187149,
+        "n_obstacles": 3,
+        "max_wp_idx": 2,
+        "n_waypoints": 3,
+        "seed": 302
+      },
+      {
+        "steps": 45,
+        "reward": -12.890305943091391,
+        "reason": "goal_reached",
+        "final_distance": 0.36054008112644853,
+        "start_distance": 2.6432971954345703,
+        "goal": [
+          2.290449857711792,
+          -1.3194164037704468
+        ],
+        "smoothness": 0.3195916414260864,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24497553706169128,
+        "n_obstacles": 4,
+        "max_wp_idx": 2,
+        "n_waypoints": 3,
+        "seed": 303
+      },
+      {
+        "steps": 78,
+        "reward": -139.59450944622938,
+        "reason": "goal_reached",
+        "final_distance": 0.3811194675465203,
+        "start_distance": 3.6859686374664307,
+        "goal": [
+          -2.9663872718811035,
+          2.187901258468628
+        ],
+        "smoothness": 0.26395437121391296,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2459651678800583,
+        "n_obstacles": 4,
+        "max_wp_idx": 2,
+        "n_waypoints": 3,
+        "seed": 304
+      },
+      {
+        "steps": 68,
+        "reward": -133.15131112750913,
+        "reason": "goal_reached",
+        "final_distance": 0.33462315292267636,
+        "start_distance": 4.1456804275512695,
+        "goal": [
+          1.483826994895935,
+          3.8710365295410156
+        ],
+        "smoothness": 0.2280876487493515,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24596808850765228,
+        "n_obstacles": 3,
+        "max_wp_idx": 2,
+        "n_waypoints": 3,
+        "seed": 305
+      },
+      {
+        "steps": 46,
+        "reward": -3.9450774473005765,
+        "reason": "goal_reached",
+        "final_distance": 0.3914354392639631,
+        "start_distance": 2.174272060394287,
+        "goal": [
+          0.6828193068504333,
+          -2.0642714500427246
+        ],
+        "smoothness": 0.2787359356880188,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24597308039665222,
+        "n_obstacles": 4,
+        "max_wp_idx": 2,
+        "n_waypoints": 3,
+        "seed": 306
+      },
+      {
+        "steps": 64,
+        "reward": -113.66586382834068,
+        "reason": "goal_reached",
+        "final_distance": 0.3676072877692945,
+        "start_distance": 3.898761034011841,
+        "goal": [
+          1.7988908290863037,
+          3.458949089050293
+        ],
+        "smoothness": 0.2394995242357254,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24597327411174774,
+        "n_obstacles": 3,
+        "max_wp_idx": 2,
+        "n_waypoints": 3,
+        "seed": 307
+      },
+      {
+        "steps": 59,
+        "reward": -86.81172646679796,
+        "reason": "goal_reached",
+        "final_distance": 0.38652871921522697,
+        "start_distance": 4.0590128898620605,
+        "goal": [
+          3.8712522983551025,
+          1.2202415466308594
+        ],
+        "smoothness": 0.3627217411994934,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24552308022975922,
+        "n_obstacles": 3,
+        "max_wp_idx": 2,
+        "n_waypoints": 3,
+        "seed": 308
+      },
+      {
+        "steps": 41,
+        "reward": -2.0117928019572417,
+        "reason": "goal_reached",
+        "final_distance": 0.3957522399330415,
+        "start_distance": 2.700637102127075,
+        "goal": [
+          -2.5000154972076416,
+          -1.021451711654663
+        ],
+        "smoothness": 0.3326973021030426,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24504920840263367,
+        "n_obstacles": 5,
+        "max_wp_idx": 2,
+        "n_waypoints": 3,
+        "seed": 309
+      }
+    ],
+    "td3_lqr_planner_n5": [
+      {
+        "steps": 59,
+        "reward": -88.93321859639046,
+        "reason": "goal_reached",
+        "final_distance": 0.3866175043607978,
+        "start_distance": 4.011110305786133,
+        "goal": [
+          3.730112075805664,
+          1.474879503250122
+        ],
+        "smoothness": 0.28780004382133484,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2458404004573822,
+        "n_obstacles": 5,
+        "max_wp_idx": 4,
+        "n_waypoints": 5,
+        "seed": 300
+      },
+      {
+        "steps": 68,
+        "reward": -95.23764852400006,
+        "reason": "goal_reached",
+        "final_distance": 0.38972914539509423,
+        "start_distance": 3.2022221088409424,
+        "goal": [
+          -0.9840688109397888,
+          -3.047266721725464
+        ],
+        "smoothness": 0.36783555150032043,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2459651082754135,
+        "n_obstacles": 4,
+        "max_wp_idx": 4,
+        "n_waypoints": 5,
+        "seed": 301
+      },
+      {
+        "steps": 69,
+        "reward": -148.68133704698957,
+        "reason": "goal_reached",
+        "final_distance": 0.39926572466782045,
+        "start_distance": 4.279239177703857,
+        "goal": [
+          1.1692019701004028,
+          4.11641263961792
+        ],
+        "smoothness": 0.368197500705719,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.0,
+        "n_obstacles": 3,
+        "max_wp_idx": 4,
+        "n_waypoints": 5,
+        "seed": 302
+      },
+      {
+        "steps": 45,
+        "reward": -14.071178406088677,
+        "reason": "goal_reached",
+        "final_distance": 0.36824038796363195,
+        "start_distance": 2.6432971954345703,
+        "goal": [
+          2.290449857711792,
+          -1.3194164037704468
+        ],
+        "smoothness": 0.43947017192840576,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24506652355194092,
+        "n_obstacles": 4,
+        "max_wp_idx": 4,
+        "n_waypoints": 5,
+        "seed": 303
+      },
+      {
+        "steps": 58,
+        "reward": -81.71283614744209,
+        "reason": "goal_reached",
+        "final_distance": 0.3222350497703873,
+        "start_distance": 3.6859686374664307,
+        "goal": [
+          -2.9663872718811035,
+          2.187901258468628
+        ],
+        "smoothness": 0.2161058932542801,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24588611721992493,
+        "n_obstacles": 4,
+        "max_wp_idx": 4,
+        "n_waypoints": 5,
+        "seed": 304
+      },
+      {
+        "steps": 67,
+        "reward": -133.09085979423477,
+        "reason": "goal_reached",
+        "final_distance": 0.38081763326592355,
+        "start_distance": 4.1456804275512695,
+        "goal": [
+          1.483826994895935,
+          3.8710365295410156
+        ],
+        "smoothness": 0.3017651438713074,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24597325921058655,
+        "n_obstacles": 3,
+        "max_wp_idx": 4,
+        "n_waypoints": 5,
+        "seed": 305
+      },
+      {
+        "steps": 48,
+        "reward": -7.89678831145055,
+        "reason": "goal_reached",
+        "final_distance": 0.38275340632308674,
+        "start_distance": 2.174272060394287,
+        "goal": [
+          0.6828193068504333,
+          -2.0642714500427246
+        ],
+        "smoothness": 0.34572288393974304,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.0,
+        "n_obstacles": 4,
+        "max_wp_idx": 4,
+        "n_waypoints": 5,
+        "seed": 306
+      },
+      {
+        "steps": 64,
+        "reward": -113.01533210910091,
+        "reason": "goal_reached",
+        "final_distance": 0.3422288858425759,
+        "start_distance": 3.898761034011841,
+        "goal": [
+          1.7988908290863037,
+          3.458949089050293
+        ],
+        "smoothness": 0.18834729492664337,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24596834182739258,
+        "n_obstacles": 3,
+        "max_wp_idx": 4,
+        "n_waypoints": 5,
+        "seed": 307
+      },
+      {
+        "steps": 60,
+        "reward": -92.71001110132934,
+        "reason": "goal_reached",
+        "final_distance": 0.37813096302654836,
+        "start_distance": 4.0590128898620605,
+        "goal": [
+          3.8712522983551025,
+          1.2202415466308594
+        ],
+        "smoothness": 0.2838082015514374,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.2459729164838791,
+        "n_obstacles": 3,
+        "max_wp_idx": 4,
+        "n_waypoints": 5,
+        "seed": 308
+      },
+      {
+        "steps": 49,
+        "reward": -11.620880331090206,
+        "reason": "goal_reached",
+        "final_distance": 0.3697867462491593,
+        "start_distance": 2.700637102127075,
+        "goal": [
+          -2.5000154972076416,
+          -1.021451711654663
+        ],
+        "smoothness": 0.5665566921234131,
+        "success": true,
+        "collision": false,
+        "min_lidar_seen": 0.24504920840263367,
+        "n_obstacles": 5,
+        "max_wp_idx": 4,
+        "n_waypoints": 5,
+        "seed": 309
+      }
+    ]
+  }
+}

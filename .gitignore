@@ -1,0 +1,72 @@
+﻿# Python virtual env
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# RL / ML artifacts
+# (модели и логи обычно не коммитим - большие и часто меняются)
+runs/
+logs/
+tensorboard/
+tb_logs/
+models/
+checkpoints/
+*.ckpt
+*.pth
+*.pt
+wandb/
+
+# Experiments outputs
+outputs/
+results/
+videos/
+*.mp4
+*.avi
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# Temp
+*.tmp
+*.bak
+*.log
+
+# torch 2.11 workaround cache
+.torch_cache/
+
+
+# Generated figures (regenerate from scripts) — except architecture.svg (hand-written)
+figures/*
+!figures/architecture.svg
+
+
+.training_pid
+training_obstacle.log
+training_obstacle.err.log
+training_obstacle_v2.log
+training_obstacle_v2.err.log
+training_obstacle_v3.log
+training_obstacle_v3.err
+

@@ -97,7 +97,7 @@ python eval_td3_lqr_planner.py
 ```bash
 python eval_td3_lqr_planner_obstacle.py ^
     --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip ^
-    --n-eps 30
+    --episodes 30
 ```
 
 Результат: `ablation_results_obstacle_v3_30seeds.json`. Ожидаемые числа:
@@ -112,7 +112,7 @@ python eval_td3_lqr_planner_obstacle.py ^
 ```bash
 python eval_td3_lqr_planner_obstacle.py ^
     --model models/husky_obstacle_td3_v1_best/best_model.zip ^
-    --n-eps 30
+    --episodes 30
 ```
 
 Демонстрирует противоположный эффект planner'а на слабой policy (см. раздел 5 статьи).
@@ -218,10 +218,10 @@ dccn-husky-rl/
 python eval_td3_lqr_planner.py
 
 # Таблица 5.2 (Stage 2a v3, 30 сидов)
-python eval_td3_lqr_planner_obstacle.py --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip --n-eps 30
+python eval_td3_lqr_planner_obstacle.py --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip --episodes 30
 
 # Контрольная таблица v1 vs v3
-python eval_td3_lqr_planner_obstacle.py --model models/husky_obstacle_td3_v1_best/best_model.zip --n-eps 30
+python eval_td3_lqr_planner_obstacle.py --model models/husky_obstacle_td3_v1_best/best_model.zip --episodes 30
 
 # Графики траекторий (рис. 5.1 и 5.3 статьи)
 python plot_trajectories.py
@@ -235,20 +235,21 @@ python make_report_figures.py
 
 ## Тесты
 
-Smoke- и юнит-тесты на ключевые компоненты:
+Smoke- и юнит-проверки на ключевые компоненты. Каждый тест — самостоятельный скрипт, запускается напрямую и печатает диагностику в консоль:
 
 ```bash
-# Все тесты
-python -m pytest test_*.py -v
+# Юнит на LQR (быстро, без PyBullet)
+python test_lqr_unit.py
+python test_waypoint_planner.py
 
-# Только юнит (быстро, без PyBullet)
-python -m pytest test_lqr_unit.py test_waypoint_planner.py -v
-
-# Smoke-тесты сред (требуют PyBullet)
-python -m pytest test_husky_*.py test_obstacle_*.py -v
+# Smoke-тесты сред (требуют PyBullet, открывают headless-симуляцию)
+python test_husky_env.py
+python test_husky_obstacle_smoke.py
+python test_husky_planned_env_smoke.py
+python test_obstacle_planned_smoke.py
 ```
 
-Покрытие: 7 тестов на waypoint-планировщик + 4 smoke-теста на обёртки сред + юнит на LQR.
+Покрытие: проверка матрицы K в LQR, формирование waypoints, корректность observation/reward в трёх gym-средах, smoke-проход эпизода с планировщиком.
 
 ---
 

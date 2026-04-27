@@ -9,3 +9,6 @@ gymnasium>=1.0,<2.0
 pybullet>=3.2.6
 stable-baselines3>=2.7,<3.0
 # torch ставится автоматически как зависимость stable-baselines3 (CPU-версии достаточно)
+
+# Для запуска тестов
+pytest>=8.0

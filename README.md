@@ -100,12 +100,14 @@ python eval_td3_lqr_planner_obstacle.py ^
     --episodes 30
 ```
 
-Результат: `ablation_results_obstacle_v3_30seeds.json`. Ожидаемые числа:
+Результат: `ablation_results_obstacle.json`. Ожидаемые числа:
 
-| Режим | Success | Reward |
-|---|---|---|
-| TD3 baseline (v3) | 27/30 | … |
-| TD3 + LQR + Planner N=3 | 25/30 | … |
+| Режим | Success | Collisions | Steps | Smoothness |
+|---|---|---|---|---|
+| TD3 baseline (v3) | 27/30 | 3/30 | 65.4 ± 39 | 0.322 |
+| TD3 + LQR (α=0.2) | 27/30 | 3/30 | 66.9 ± 44 | 0.302 |
+| TD3 + LQR + Planner N=3 | 25/30 | 3/30 | 111.4 ± 127 | 0.285 |
+| TD3 + LQR + Planner N=5 | 25/30 | 3/30 | 119.8 ± 128 | 0.315 |
 
 ### Stage 2a v1 (контрольная модель до фикса лидара)
 

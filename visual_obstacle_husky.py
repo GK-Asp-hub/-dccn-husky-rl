@@ -117,8 +117,30 @@ def run_episode(
     realtime: bool,
     slowdown: float,
     draw_lidar: bool,
+    setup_camera: bool = False,
+    record_path: str | None = None,
 ) -> dict:
     obs, info = env.reset(seed=seed)
+
+    # После первого reset PyBullet client поднят — здесь можно настраивать
+    # камеру и запускать запись видео.
+    if setup_camera:
+        try:
+            p.resetDebugVisualizerCamera(
+                cameraDistance=8.0, cameraYaw=45.0, cameraPitch=-50.0,
+                cameraTargetPosition=[0.0, 0.0, 0.0],
+            )
+        except Exception as e:
+            print(f"[warn] не удалось выставить камеру: {e}")
+
+    record_log_id = None
+    if record_path is not None:
+        Path(record_path).parent.mkdir(parents=True, exist_ok=True)
+        record_log_id = p.startStateLogging(
+            p.STATE_LOGGING_VIDEO_MP4, record_path,
+        )
+        print(f"Recording:       {record_path} (logId={record_log_id})")
+
     start_dist = float(np.hypot(info["goal"][0], info["goal"][1]))
 
     # Если с планировщиком — рисуем waypoints
@@ -192,6 +214,11 @@ def run_episode(
         float(np.linalg.norm(np.diff(actions, axis=0), axis=1).mean())
         if len(actions) > 1 else 0.0
     )
+
+    if record_log_id is not None:
+        p.stopStateLogging(record_log_id)
+        print(f"Saved video:     {record_path}")
+
     return {
         "steps": steps,
         "reward": ep_reward,
@@ -222,6 +249,8 @@ def main():
     parser.add_argument("--slowdown", type=float, default=1.0,
                         help="множитель realtime-задержки. >1 = медленнее")
     parser.add_argument("--headless", action="store_true", help="без GUI (для тестов)")
+    parser.add_argument("--record", type=str, default=None,
+                        help="путь к выходному mp4 для записи окна PyBullet (требует ffmpeg в PATH)")
     args = parser.parse_args()
 
     assert Path(args.model).exists(), f"Модель не найдена: {args.model}"
@@ -252,14 +281,21 @@ def main():
     print(f"Episodes:        {args.episodes}, seeds {args.seed_base}..{args.seed_base + args.episodes - 1}")
     print()
 
+    if args.record and args.headless:
+        print("[warn] --record несовместим с --headless, запись будет пропущена")
+
     try:
         results = []
         for i in range(args.episodes):
             seed = args.seed_base + i
+            # Камеру и запись настраиваем только в первом эпизоде.
+            is_first = (i == 0)
             res = run_episode(
                 env, model, lqr, args.alpha,
                 use_planner=args.planner, seed=seed,
                 realtime=realtime, slowdown=args.slowdown, draw_lidar=draw_lidar,
+                setup_camera=is_first and not args.headless,
+                record_path=(args.record if is_first and args.record and not args.headless else None),
             )
             results.append(res)
             print(

@@ -82,8 +82,30 @@ def run_episode(
     seed: int,
     realtime: bool,
     slowdown: float = 1.0,
+    setup_camera: bool = False,
+    record_path: str | None = None,
 ) -> dict:
     obs, info = env.reset(seed=seed)
+
+    # После первого reset PyBullet client уже жив — здесь можно настраивать камеру
+    # и запускать запись видео.
+    if setup_camera:
+        try:
+            p.resetDebugVisualizerCamera(
+                cameraDistance=8.0, cameraYaw=45.0, cameraPitch=-50.0,
+                cameraTargetPosition=[0.0, 0.0, 0.0],
+            )
+        except Exception as e:
+            print(f"[warn] не удалось выставить камеру: {e}")
+
+    record_log_id = None
+    if record_path is not None:
+        Path(record_path).parent.mkdir(parents=True, exist_ok=True)
+        record_log_id = p.startStateLogging(
+            p.STATE_LOGGING_VIDEO_MP4, record_path,
+        )
+        print(f"Recording:     {record_path} (logId={record_log_id})")
+
     waypoints = info["waypoints_all"]
     start_dist = float(np.hypot(info["goal"][0], info["goal"][1]))
 
@@ -143,6 +165,10 @@ def run_episode(
         if len(actions) > 1 else 0.0
     )
 
+    if record_log_id is not None:
+        p.stopStateLogging(record_log_id)
+        print(f"Saved video:   {record_path}")
+
     return {
         "steps": steps,
         "reward": ep_reward,
@@ -174,6 +200,8 @@ def main():
                              "3 = в 3 раза медленнее. Игнорируется с --fast.")
     parser.add_argument("--headless", action="store_true",
                         help="без GUI (для прогонов на удалённой машине)")
+    parser.add_argument("--record", type=str, default=None,
+                        help="путь к выходному mp4 для записи окна PyBullet (требует ffmpeg в PATH)")
     args = parser.parse_args()
 
     assert Path(args.model).exists(), f"Модель не найдена: {args.model}"
@@ -193,26 +221,36 @@ def main():
     print(f"Goal radius:   {GOAL_RADIUS} m (цель считается достигнутой если ближе)\n")
 
     realtime = (not args.fast) and (not args.headless)
-    results = []
-    for i in range(args.episodes):
-        seed = args.seed_base + i
-        res = run_episode(
-            env, model, lqr, alpha=args.alpha,
-            seed=seed, realtime=realtime, slowdown=args.slowdown,
-        )
-        results.append(res)
-        print(
-            f"Ep {i+1}: seed={seed}  "
-            f"start_dist={res['start_distance']:.2f}m  "
-            f"steps={res['steps']:3d}  "
-            f"reward={res['reward']:+7.2f}  "
-            f"final_dist={res['final_distance']:.2f}m  "
-            f"smooth={res['action_smoothness']:.4f}  "
-            f"max_wp={res['max_wp_idx']}/{res['n_waypoints'] - 1}  "
-            f"{res['reason']}"
-        )
 
-    env.close()
+    if args.record and args.headless:
+        print("[warn] --record несовместим с --headless, запись будет пропущена")
+
+    results = []
+    try:
+        for i in range(args.episodes):
+            seed = args.seed_base + i
+            # Камеру и запись настраиваем только в первом эпизоде:
+            # запись на нескольких эпизодах в один файл не поддерживается простым способом.
+            is_first = (i == 0)
+            res = run_episode(
+                env, model, lqr, alpha=args.alpha,
+                seed=seed, realtime=realtime, slowdown=args.slowdown,
+                setup_camera=is_first and not args.headless,
+                record_path=(args.record if is_first and args.record and not args.headless else None),
+            )
+            results.append(res)
+            print(
+                f"Ep {i+1}: seed={seed}  "
+                f"start_dist={res['start_distance']:.2f}m  "
+                f"steps={res['steps']:3d}  "
+                f"reward={res['reward']:+7.2f}  "
+                f"final_dist={res['final_distance']:.2f}m  "
+                f"smooth={res['action_smoothness']:.4f}  "
+                f"max_wp={res['max_wp_idx']}/{res['n_waypoints'] - 1}  "
+                f"{res['reason']}"
+            )
+    finally:
+        env.close()
 
     print("\n=== Итог ===")
     success = sum(1 for r in results if r["reason"] == "goal_reached")

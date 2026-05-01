@@ -33,9 +33,12 @@ wandb/
 # Experiments outputs
 outputs/
 results/
-videos/
-*.mp4
 *.avi
+*.mp4
+# Исключение: demo-ролики для статьи DCCN коммитим
+!videos/
+!videos/*.mp4
+
 
 # OS
 Thumbs.db

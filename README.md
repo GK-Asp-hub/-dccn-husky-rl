@@ -12,6 +12,7 @@
 - [Обучение с нуля](#обучение-с-нуля)
 - [Структура репозитория](#структура-репозитория)
 - [Воспроизведение результатов статьи](#воспроизведение-результатов-статьи)
+- [Демо-видео](#демо-видео)
 - [Тесты](#тесты)
 - [Зависимости](#зависимости)
 
@@ -30,7 +31,7 @@
 | Waypoint-планировщик | `planners/waypoint_planner.py` | Делит линию старт-цель на N подцелей; переключение по радиусу. |
 | Wrapper-среда | `envs/husky_goal_planned_env.py` | Generic-обёртка, подменяющая `goal` на текущий waypoint. Работает над любой inner-средой. |
 
-Видеодемонстрация работы — см. [Releases](../../releases) (файл `demo.mp4`).
+Видеодемонстрация работы — три эпизода в папке [`videos/`](videos/), см. также раздел [Демо-видео](#демо-видео) ниже.
 
 ---
 
@@ -152,6 +153,21 @@ python visual_obstacle_husky.py ^
 - жёлтые лучи из робота — лидар (только Stage 2a);
 - цилиндры случайной высоты — препятствия (только Stage 2a).
 
+#### Запись видео
+
+Оба `visual_*.py` поддерживают флаг `--record PATH` для записи окна PyBullet в mp4. Камера выставляется автоматически (вид сверху-сбоку, центр в начале координат). Запись начинается в первом эпизоде и останавливается по его завершению.
+
+Требование: `ffmpeg` в `PATH` (PyBullet вызывает его popen'ом для кодирования h264).
+
+```bash
+python visual_planned_husky.py ^
+    --model models/husky_td3_v1_cont_best/best_model.zip ^
+    --episodes 1 --seed-base 200 --slowdown 2 ^
+    --record videos/01_stage1_baseline.mp4
+```
+
+Готовые ролики, использованные при подготовке статьи, лежат в `videos/` — см. раздел [Демо-видео](#демо-видео).
+
 ---
 
 ## Обучение с нуля
@@ -205,6 +221,7 @@ dccn-husky-rl/
 ├── test_*.py                      # юнит- и smoke-тесты
 ├── ablation_results*.json         # сохранённые таблицы метрик из статьи
 ├── figures/                       # сгенерированные графики (PNG, SVG)
+├── videos/                        # 3 демо-эпизода (mp4, см. раздел «Демо-видео»)
 ├── requirements.txt               # минимальные зависимости
 └── requirements-lock.txt          # точные версии (для воспроизводимости)
 ```
@@ -231,6 +248,28 @@ python plot_trajectories_obstacle.py --model models/husky_obstacle_td3_v3_steppe
 
 # Сводные графики (рис. 5.4 и 5.5 статьи)
 python make_report_figures.py
+```
+
+---
+
+## Демо-видео
+
+Папка [`videos/`](videos/) содержит три эпизода, иллюстрирующие главное эмпирическое наблюдение статьи: **полезность waypoint-планировщика обратно пропорциональна качеству underlying policy**. Все ролики записаны через флаг `--record` тех же `visual_*.py` скриптов (см. [Запись видео](#запись-видео)).
+
+| Файл | Длит. | Что показано |
+|------|-------|--------------|
+| [`01_stage1_baseline.mp4`](videos/01_stage1_baseline.mp4) | 3.5 с | Stage 1, пустая арена, seed=200. TD3 + LQR доходит до цели за 62 шага. Базовая ситуация. |
+| [`02_stage2a_v3_baseline.mp4`](videos/02_stage2a_v3_baseline.mp4) | 44 с | Stage 2a v3, арена с препятствиями, seed=304. TD3 v3 (без планировщика) доходит за 76 шагов, без коллизий. |
+| [`03_stage2a_v3_planner.mp4`](videos/03_stage2a_v3_planner.mp4) | 4:51 | Stage 2a v3 + waypoint-планировщик N=3, **тот же seed 304, та же policy**. Эпизод заканчивается timeout'ом на 500 шагов, reward −856.74. |
+
+Эпизоды 02 и 03 различаются только включённым планировщиком — всё остальное (модель, среда, seed) идентично. Совместный просмотр визуально воспроизводит negative effect планировщика на сильной policy (−6.7 п.п. в success rate на полном ablation 30 сидов, см. таблицу выше).
+
+Команды для воспроизведения:
+
+```bash
+python visual_planned_husky.py --model models/husky_td3_v1_cont_best/best_model.zip --episodes 1 --seed-base 200 --slowdown 2 --record videos/01_stage1_baseline.mp4
+python visual_obstacle_husky.py --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip --episodes 1 --seed-base 304 --slowdown 2 --record videos/02_stage2a_v3_baseline.mp4
+python visual_obstacle_husky.py --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip --episodes 1 --seed-base 304 --slowdown 2 --planner --n-waypoints 3 --record videos/03_stage2a_v3_planner.mp4
 ```
 
 ---

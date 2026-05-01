@@ -256,15 +256,26 @@ python make_report_figures.py
 
 Папка [`videos/`](videos/) содержит три эпизода, иллюстрирующие главное эмпирическое наблюдение статьи: **полезность waypoint-планировщика обратно пропорциональна качеству underlying policy**. Все ролики записаны через флаг `--record` тех же `visual_*.py` скриптов (см. [Запись видео](#запись-видео)).
 
-| Файл | Длит. | Что показано |
-|------|-------|--------------|
-| [`01_stage1_baseline.mp4`](videos/01_stage1_baseline.mp4) | 3.5 с | Stage 1, пустая арена, seed=200. TD3 + LQR доходит до цели за 62 шага. Базовая ситуация. |
-| [`02_stage2a_v3_baseline.mp4`](videos/02_stage2a_v3_baseline.mp4) | 44 с | Stage 2a v3, арена с препятствиями, seed=304. TD3 v3 (без планировщика) доходит за 76 шагов, без коллизий. |
-| [`03_stage2a_v3_planner.mp4`](videos/03_stage2a_v3_planner.mp4) | 4:51 | Stage 2a v3 + waypoint-планировщик N=3, **тот же seed 304, та же policy**. Эпизод заканчивается timeout'ом на 500 шагов, reward −856.74. |
+### Как посмотреть
+
+GitHub в файловом дереве не показывает встроенный плеер для mp4 — клик по файлу открывает blame-view без воспроизведения. Есть два рабочих пути:
+
+1. **Release v1.1-media** ([прямая ссылка](https://github.com/GK-Asp-hub/-dccn-husky-rl/releases/tag/v1.1-media)) — каждый файл скачивается одним кликом по ссылке в разделе *Assets*. Это рекомендуемый способ.
+2. **Файл в репо** → клик по имени файла в таблице ниже → на открывшейся странице нажать кнопку **«View raw»** (ссылка вверху справа над содержимым). Браузер скачает файл; откройте в локальном плеере (VLC, MPC, любой системный).
+
+Видео — стандартный H.264 / yuv420p в контейнере mp4, играют в любом современном плеере.
+
+### Эпизоды
+
+| Файл в репо | Скачать (Release) | Длит. | Что показано |
+|------|------|-------|--------------|
+| [`01_stage1_baseline.mp4`](videos/01_stage1_baseline.mp4) | [⬇](https://github.com/GK-Asp-hub/-dccn-husky-rl/releases/download/v1.1-media/01_stage1_baseline.mp4) | 3.5 с | Stage 1, пустая арена, seed=200. TD3 + LQR доходит до цели за 62 шага. Базовая ситуация. |
+| [`02_stage2a_v3_baseline.mp4`](videos/02_stage2a_v3_baseline.mp4) | [⬇](https://github.com/GK-Asp-hub/-dccn-husky-rl/releases/download/v1.1-media/02_stage2a_v3_baseline.mp4) | 44 с | Stage 2a v3, арена с препятствиями, seed=304. TD3 v3 (без планировщика) доходит за 76 шагов, без коллизий. |
+| [`03_stage2a_v3_planner.mp4`](videos/03_stage2a_v3_planner.mp4) | [⬇](https://github.com/GK-Asp-hub/-dccn-husky-rl/releases/download/v1.1-media/03_stage2a_v3_planner.mp4) | 4:51 | Stage 2a v3 + waypoint-планировщик N=3, **тот же seed 304, та же policy**. Эпизод заканчивается timeout'ом на 500 шагов, reward −856.74. |
 
 Эпизоды 02 и 03 различаются только включённым планировщиком — всё остальное (модель, среда, seed) идентично. Совместный просмотр визуально воспроизводит negative effect планировщика на сильной policy (−6.7 п.п. в success rate на полном ablation 30 сидов, см. таблицу выше).
 
-Команды для воспроизведения:
+### Команды для воспроизведения с нуля
 
 ```bash
 python visual_planned_husky.py --model models/husky_td3_v1_cont_best/best_model.zip --episodes 1 --seed-base 200 --slowdown 2 --record videos/01_stage1_baseline.mp4

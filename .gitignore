@@ -37,7 +37,7 @@ results/
 *.mp4
 # Исключение: demo-ролики для статьи DCCN коммитим
 !videos/
-!videos/*.mp4
+!videos/**/*.mp4
 
 
 # OS

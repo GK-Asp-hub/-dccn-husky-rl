@@ -13,6 +13,7 @@
 - [Структура репозитория](#структура-репозитория)
 - [Воспроизведение результатов статьи](#воспроизведение-результатов-статьи)
 - [Демо-видео](#демо-видео)
+- [Эксперимент A — детерминированное препятствие](#эксперимент-a--детерминированное-препятствие)
 - [Тесты](#тесты)
 - [Зависимости](#зависимости)
 
@@ -282,6 +283,52 @@ python visual_planned_husky.py --model models/husky_td3_v1_cont_best/best_model.
 python visual_obstacle_husky.py --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip --episodes 1 --seed-base 304 --slowdown 2 --record videos/02_stage2a_v3_baseline.mp4
 python visual_obstacle_husky.py --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip --episodes 1 --seed-base 304 --slowdown 2 --planner --n-waypoints 3 --record videos/03_stage2a_v3_planner.mp4
 ```
+
+---
+
+## Эксперимент A — детерминированное препятствие
+
+Дополнительный эксперимент за рамками статьи: **препятствие фиксировано на прямой между стартом и целью**. Сравнивает пять контуров управления на одной и той же постановке, чтобы локализовать границу применимости чисто реактивной политики и показать минимальное расширение архитектуры, которое её закрывает.
+
+Подробное описание, таблица результатов и пять видео — в [`videos/exp_a/README.md`](videos/exp_a/README.md).
+
+### Главный результат
+
+| Контур управления | Итог на сиде 1000 |
+|---|---|
+| TD3 alone | ❌ collision на 19 шаге |
+| TD3 + LQR-residual (α=0.2) | ❌ collision на 19 шаге |
+| TD3 + лидарный avoidance | ❌ collision на 45 шаге |
+| **TD3 + map-aware avoidance** | ✅ goal_reached на 228 шаге |
+| TD3 + map-aware avoidance + LQR | ✅ goal_reached на 228 шаге |
+
+Чисто реактивная политика TD3 (с LQR-residual или без) врезается в препятствие за одну секунду — это out-of-distribution относительно тренировочного распределения (`v3_steppen036` обучалась на случайно расставленных препятствиях, не на конфигурации «препятствие точно по курсу с самого старта»). Лидарный avoidance не закрывает задачу из-за углового разрешения 22.5° на 16 лучах. Map-aware avoidance, использующий точные координаты препятствий (proxy для SLAM-карты или предоставленной геометрии), решает задачу на 100%.
+
+### Запуск
+
+Headless-ablation с траекторным графиком и JSON:
+
+```bash
+python experiments/exp_a_final.py --seeds 3
+```
+
+Запись видео всех пяти конфигураций (требуется ffmpeg в PATH):
+
+```bash
+python experiments/exp_a_video_mp4.py
+```
+
+### Файлы
+
+| Назначение | Путь |
+|---|---|
+| Детерминированная среда | `envs/husky_obstacle_deterministic_env.py` |
+| Лидарный avoidance | `controllers/obstacle_avoidance.py` |
+| Map-aware avoidance | `controllers/map_aware_avoidance.py` |
+| Альтернативный goal-redirect | `controllers/goal_redirect.py` |
+| Eval pipeline | `experiments/exp_a_final.py` |
+| Запись видео | `experiments/exp_a_video_mp4.py` |
+| Видео и подробное описание | [`videos/exp_a/`](videos/exp_a/) |
 
 ---
 

@@ -76,11 +76,7 @@
 \section{Обзор работ}
 \label{sec:related}
 
-В задачах непрерывного управления применяются методы актора-критика~\cite{lillicrap2016ddpg,fujimoto2018td3,haarnoja2018sac,schulman2017ppo}. В настоящей работе используется TD3~\cite{fujimoto2018td3} как алгоритм с устойчивым обучением на робототехнических задачах и эталонной реализацией в \verb|stable-baselines3|~\cite{raffin2021sb3}.
-
-Комбинирование обученной стратегии с классическим регулятором~\cite{silver2018residual,johannink2019residual} компенсирует ограничения каждого подхода в отдельности: обучение требует большого числа взаимодействий со средой, а классические контроллеры теряют точность при трении и неучтённой нелинейности. Линейно-квадратичный регулятор применяется к кинематике дифференциального привода через линеаризацию модели в координатах ошибки курса и поперечного отклонения.
-
-Трёхуровневая иерархическая архитектура управления (STRL~\cite{gat1998three,kiselev2020dissertation,kiselev2020}) исторически развивается в поведенческой робототехнике и расширена в~\cite{veitsenfeld2024} мультимодальной модельной компонентой. Параллельное направление гибридизации обучения с подкреплением и методов оптимального управления систематизировано в обзорах~\cite{hewing2020lbmpc,brunke2022safe}, с близкими подходами в~\cite{levine2016end,cheng2019control,kahn2018selfsup}. Настоящая работа развивает указанное направление в части непрерывного управления и количественного анализа роли каждого уровня архитектуры.
+В задачах непрерывного управления применяются методы актора-критика~\cite{lillicrap2016ddpg,fujimoto2018td3,haarnoja2018sac,schulman2017ppo}; в настоящей работе используется TD3~\cite{fujimoto2018td3} с эталонной реализацией в \verb|stable-baselines3|~\cite{raffin2021sb3}. Комбинирование обученной стратегии с классическим регулятором~\cite{silver2018residual,johannink2019residual} компенсирует ограничения каждого подхода в отдельности. Параллельное направление гибридизации обучения с подкреплением и методов оптимального управления систематизировано в обзорах~\cite{hewing2020lbmpc,brunke2022safe}, с близкими подходами в~\cite{levine2016end,cheng2019control,kahn2018selfsup}. Настоящая работа развивает направление STRL~\cite{gat1998three,kiselev2020dissertation,kiselev2020,veitsenfeld2024} в части непрерывного управления и количественного анализа роли каждого уровня архитектуры.
 
 \section{Метод}
 \label{sec:method}
@@ -88,11 +84,11 @@
 \subsection{Постановка задачи}
 \label{sec:problem}
 
-Задача формализуется как марковский процесс принятия решений $\langle S, A, T, R, \gamma \rangle$ с непрерывными пространствами на плоской арене $10 \times 10$ м с препятствиями известной геометрии. Среда моделируется в PyBullet~\cite{coumans2021pybullet} на платформе Husky. Состояние агента
+Задача формализуется как марковский процесс принятия решений $\langle S, A, T, R, \gamma \rangle$ с непрерывными пространствами в плоской рабочей области $10 \times 10$ м с препятствиями известной геометрии. Среда моделируется в PyBullet~\cite{coumans2021pybullet} на платформе Husky. Состояние агента
 \begin{equation}
 s_t = (\mathbf{r}_t,\ \theta_t,\ \mathbf{v}_t,\ \omega_t,\ \mathbf{g}_t,\ \ell_t)^\top \in \mathbb{R}^{n_s},
 \end{equation}
-включает координаты $\mathbf{r}_t = (x_t, y_t)$, ориентацию $\theta_t$, линейную и угловую скорости $\mathbf{v}_t, \omega_t$, относительное положение цели $\mathbf{g}_t = \mathbf{r}_g - \mathbf{r}_t$, и лидарные измерения $\ell_t \in \mathbb{R}^{16}$ (только при наличии препятствий). Действие $a_t \in [-1, 1]^2$~--- нормированные скорости левой и правой пар колёс, преобразуемые в физические $\omega_w \in [-10, 10]$ рад/с. Шаги физики и управления $1/240$ и $1/20$ с, $\gamma = 0.99$. Цель на расстоянии 2--5 м, радиус достижения 0.4 м. Эпизод завершается при достижении цели, перевороте, выходе за арену, столкновении или таймауте 500 шагов. Вознаграждение плотное (штраф за расстояние, шаговый штраф, терминальные бонус и штрафы).
+включает координаты $\mathbf{r}_t = (x_t, y_t)$, ориентацию $\theta_t$, линейную и угловую скорости $\mathbf{v}_t, \omega_t$, относительное положение цели $\mathbf{g}_t = \mathbf{r}_g - \mathbf{r}_t$, и лидарные измерения $\ell_t \in \mathbb{R}^{16}$ (только при наличии препятствий). Действие $a_t \in [-1, 1]^2$~--- нормированные скорости левой и правой пар колёс, преобразуемые в физические $\omega_w \in [-10, 10]$ рад/с. Шаги физики и управления $1/240$ и $1/20$ с, $\gamma = 0.99$. Цель на расстоянии 2--5 м, радиус достижения 0.4 м. Эпизод завершается при достижении цели, перевороте, выходе за пределы рабочей области, столкновении или таймауте 500 шагов. Вознаграждение плотное (штраф за расстояние, шаговый штраф, терминальные бонус и штрафы).
 
 
 \subsection{Иерархическая архитектура управления}
@@ -173,13 +169,32 @@ wide\_obstacle      & 0/10 & 0/10 & 0/10 & \textbf{10/10} & \textbf{10/10} \\
 
 В сценариях \emph{single\_on\_line} и \emph{two\_offset} оба варианта верхнего уровня обеспечивают полный успех, тогда как нижний и средний уровни в одиночку не справляются: обученная стратегия идёт по прямой к цели, а LQR-коррекция общую стратегию не меняет. В \emph{three\_corridor} полный успех достигает только модельный верхний уровень, что соответствует роли стратегического уровня при известной структуре среды. Обратный паттерн наблюдается в \emph{barrier\_with\_gap}, где модельный уровень обходит барьер целиком, хотя геометрический проход проходим напрямую, и в \emph{wide\_obstacle}, где аппроксимация цилиндром малого радиуса не активирует MapAvoid на нужной дистанции. Эти сценарии указывают, что полезность каждого варианта верхнего уровня зависит от соответствия внутренней модели реальной геометрии среды.
 
-\textit{Воспроизводимость.} Результаты в таблице~\ref{tab:exp_a} полностью детерминированы: каждая ячейка имеет однозначный исход для всех сидов. Детерминированность~--- следствие фиксированности PyBullet, весов стратегии и отсутствия стохастичности в верхних уровнях.
-
 
 \subsection{Эксперимент B: переменные свойства поверхности}
 \label{sec:exp_b}
 
-Реализованы три типа поверхности: \emph{NORMAL} (трение 0.9), \emph{ICE} (0.05) и \emph{SAND} (0.6 с дополнительным сопротивлением качению), каждый в конфигурациях \emph{empty} и \emph{with\_obstacle}, $n = 10$. В пустой арене нижний уровень успешен на всех поверхностях, автоматически адаптируя скорость. Принципиальный результат~--- сценарий ICE+obstacle, где полного успеха (10/10) достигает только полная трёхуровневая конфигурация TD3+MapAvoid+LQR: без среднего уровня низкое трение приводит к проскальзыванию при попытке обхода. Это эмпирически подтверждает взаимодополнение уровней~--- ни один в отдельности не достаточен при физических ограничениях нижнего уровня.
+Реализованы три типа поверхности: \emph{NORMAL} (трение 0.9), \emph{ICE} (0.05) и \emph{SAND} (0.6 с дополнительным сопротивлением качению), каждый в конфигурациях \emph{empty} и \emph{with\_obstacle}, $n = 10$.
+
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{llccccc}
+\toprule
+Поверхность & Конфиг. & TD3 & +LQR & +Lidar & +Map & +Map+LQR \\
+\midrule
+NORMAL & empty     & 10/10 & 10/10 & 10/10 & 10/10 & 10/10 \\
+NORMAL & + obst.   & 0/10  & 0/10  & 0/10  & \textbf{10/10} & \textbf{10/10} \\
+ICE    & empty     & 10/10 & 10/10 & 10/10 & 10/10 & 10/10 \\
+ICE    & + obst.   & 0/10  & 0/10  & 0/10  & 0/10  & \textbf{10/10} \\
+SAND   & empty     & 10/10 & 10/10 & 10/10 & 10/10 & 10/10 \\
+SAND   & + obst.   & 0/10  & 0/10  & \textbf{10/10}  & \textbf{10/10} & \textbf{10/10} \\
+\bottomrule
+\end{tabular}
+\caption{Эксперимент~B: доля успешных эпизодов (из 10) для трёх типов поверхности и двух конфигураций.}
+\label{tab:exp_b}
+\end{center}
+\end{table}
+
+В отсутствие препятствий нижний уровень успешен на всех поверхностях, автоматически адаптируя скорость. Принципиальный результат~--- сценарий ICE+obstacle, где полного успеха достигает только полная трёхуровневая конфигурация TD3+MapAvoid+LQR: без среднего уровня низкое трение приводит к проскальзыванию при попытке обхода. Это эмпирически подтверждает взаимодополнение уровней~--- ни один в отдельности не достаточен при физических ограничениях нижнего уровня.
 
 \section{Обсуждение}
 \label{sec:discussion}
@@ -226,20 +241,20 @@ Silver T., Allen K., Tenenbaum J., Kaelbling L. Residual policy learning
 \bibitem{johannink2019residual}
 Johannink T., Bahl S., Nair A. et al. Residual reinforcement learning for robot control
 // Proc. of ICRA. 2019. P.~6023--6029.
+\bibitem{hewing2020lbmpc}
+Hewing L., Wabersich K. P., Menner M., Zeilinger M. N. Learning-Based Model Predictive Control: Toward Safe Learning in Control // Annual Review of Control, Robotics, and Autonomous Systems. 2020. V.~3. P.~269--296.
+\bibitem{brunke2022safe}
+Brunke L., Greeff M., Hall A. W., Yuan Z., Zhou S., Panerati J., Schoellig A. P. Safe Learning in Robotics: From Learning-Based Control to Safe Reinforcement Learning // Annual Review of Control, Robotics, and Autonomous Systems. 2022. V.~5. P.~411--444.
 \bibitem{levine2016end}
 Levine S., Finn C., Darrell T., Abbeel P. End-to-end training of deep visuomotor policies
 // Journal of Machine Learning Research. 2016. V.~17. P.~1--40.
 \bibitem{cheng2019control}
 Cheng R., Orosz G., Murray R. M., Burdick J. W. End-to-end safe reinforcement learning through barrier functions for safety-critical continuous control tasks
 // Proc. of AAAI. 2019. P.~3387--3395.
-\bibitem{coumans2021pybullet}
-Coumans E., Bai Y. PyBullet, a Python module for physics simulation for games, robotics and machine learning. 2016--2021. URL: \url{http://pybullet.org}
-\bibitem{hewing2020lbmpc}
-Hewing L., Wabersich K. P., Menner M., Zeilinger M. N. Learning-Based Model Predictive Control: Toward Safe Learning in Control // Annual Review of Control, Robotics, and Autonomous Systems. 2020. V.~3. P.~269--296.
-\bibitem{brunke2022safe}
-Brunke L., Greeff M., Hall A. W., Yuan Z., Zhou S., Panerati J., Schoellig A. P. Safe Learning in Robotics: From Learning-Based Control to Safe Reinforcement Learning // Annual Review of Control, Robotics, and Autonomous Systems. 2022. V.~5. P.~411--444.
 \bibitem{kahn2018selfsup}
 Kahn G., Villaflor A., Ding B., Abbeel P., Levine S. Self-supervised deep reinforcement learning with generalized computation graphs for robot navigation // Proc. of IEEE ICRA. 2018. P.~5129--5136.
+\bibitem{coumans2021pybullet}
+Coumans E., Bai Y. PyBullet, a Python module for physics simulation for games, robotics and machine learning. 2016--2021. URL: \url{http://pybullet.org}
 \bibitem{lds01_datasheet}
 Robotis Co., Ltd. LDS-01 (360 Laser Distance Sensor): Spec sheet // URL: \url{https://emanual.robotis.com/docs/en/platform/turtlebot3/appendix_lds_01/}. 2017.
 \end{thebibliography}}

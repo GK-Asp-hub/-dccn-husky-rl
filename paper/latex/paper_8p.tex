@@ -1,0 +1,362 @@
+\documentclass[11pt]{article}
+\usepackage[english,russian]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage{url}
+\usepackage{graphicx,DCCN2026_ru}
+
+\pagestyle{fancy}
+\fancyhead{}
+\fancyfoot{}
+
+\linespread{1.0}
+
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds,calc}
+
+\makeatletter
+\fancyhead[RO]{\small DCCN 2026\\ {21--25 сентября 2026}}
+\fancyhead[LO]{\small Без авторов (double-blind)\\
+Иерархическая когнитивная архитектура управления}
+
+\c@page=1
+\makeatother
+
+
+\title{Иерархическая когнитивная архитектура управления для мобильной робототехнической платформы}
+
+\author[1]{\small }
+\author[2]{\small }
+
+\email{ }
+
+
+% Compact spacing
+\setlength{\textfloatsep}{4pt plus 1pt minus 1pt}
+\setlength{\floatsep}{4pt plus 1pt minus 1pt}
+\setlength{\intextsep}{4pt plus 1pt minus 1pt}
+\setlength{\abovedisplayskip}{3pt plus 1pt minus 1pt}
+\setlength{\belowdisplayskip}{3pt plus 1pt minus 1pt}
+\setlength{\abovedisplayshortskip}{0pt plus 1pt}
+\setlength{\belowdisplayshortskip}{2pt plus 1pt minus 1pt}
+
+\begin{document}
+
+\udc{004.896}
+
+{\let\newpage\relax\maketitle}
+\vskip -1.5em
+%\footnotetext{Работа выполнена при поддержке ...}
+
+
+\begin{abstract}
+Предложена реализация трёхуровневой иерархической когнитивной архитектуры управления мобильным агентом с дифференциальным приводом в среде с препятствиями и переменными свойствами поверхности. Архитектура объединяет нижний уровень управления моторами на основе обучения с подкреплением, средний уровень коррекции на основе линейно-квадратичного регулятора и верхний уровень обхода препятствий по карте. Покомпонентный анализ на двух семействах сценариев показывает, что верхний уровень разгружает нижний при известной геометрии препятствий, но не компенсирует физических ограничений нижнего уровня при слабом сцеплении колёс. Все результаты полностью воспроизводимы.
+
+\keywords{обучение с подкреплением, TD3, LQR, иерархическое управление,
+мобильная робототехника, STRL, residual policy, когнитивный агент}
+\end{abstract}
+
+
+\section{Введение}
+\label{sec:intro}
+
+Автономная навигация мобильного агента в среде с препятствиями и переменными свойствами поверхности объединяет несколько направлений исследований: обучение с подкреплением, классическое управление, иерархическое планирование. Каждое действует на своём уровне абстракции, и вопрос об их интеграции в единую архитектуру остаётся открытым.
+
+Один из устоявшихся подходов~--- трёхуровневая иерархическая когнитивная архитектура~\cite{gat1998three,kiselev2020dissertation,kiselev2020} с распределением поведения по трём уровням, различающимся горизонтом планирования. В диссертации~\cite{kiselev2020dissertation} такая архитектура реализована для платформы МП-РМ <<Зарница>> с $Q$-обучением на нижнем уровне; в~\cite{veitsenfeld2024} направление развивается за счёт обработки мультимодальных сигналов.
+
+В настоящей работе предложена реализация трёхуровневой архитектуры для случая \emph{непрерывного} управления. Нижний уровень~--- нейросетевая стратегия, обученная методом TD3~\cite{fujimoto2018td3}; средний~--- LQR-регулятор по линеаризованной модели поперечного отклонения и отклонения курса от прямой к цели; верхний~--- модуль обхода препятствий по известной карте. Архитектура протестирована в PyBullet на платформе Husky.
+
+\textbf{Вклад работы.} (1)~Реализация трёхуровневой иерархической архитектуры для непрерывного управления агентом. (2)~Покомпонентный анализ распределения функций между уровнями на 65 конфигурациях ($7 \times 5 + 6 \times 5$) с $n = 10$ запусками на ячейку, показывающий, что верхний уровень разгружает нижний при известной геометрии препятствий, но не компенсирует физических ограничений нижнего уровня. (3)~Открытый репозиторий с воспроизводимой реализацией.
+
+
+\section{Обзор работ}
+\label{sec:related}
+
+В задачах непрерывного управления применяются методы актора-критика~\cite{lillicrap2016ddpg,fujimoto2018td3,haarnoja2018sac,schulman2017ppo}. В настоящей работе используется TD3~\cite{fujimoto2018td3} как алгоритм с устойчивым обучением на робототехнических задачах и эталонной реализацией в \verb|stable-baselines3|~\cite{raffin2021sb3}.
+
+Комбинирование обученной стратегии с классическим регулятором~\cite{silver2018residual,johannink2019residual} компенсирует ограничения каждого подхода в отдельности: обучение требует большого числа взаимодействий со средой, а классические контроллеры теряют точность при трении и неучтённой нелинейности. Линейно-квадратичный регулятор применяется к кинематике дифференциального привода через линеаризацию модели в координатах ошибки курса и поперечного отклонения.
+
+Трёхуровневая иерархическая архитектура управления (STRL~\cite{gat1998three,kiselev2020dissertation,kiselev2020}) исторически развивается в поведенческой робототехнике и расширена в~\cite{veitsenfeld2024} мультимодальной модельной компонентой. Параллельное направление гибридизации обучения с подкреплением и методов оптимального управления систематизировано в обзорах~\cite{hewing2020lbmpc,brunke2022safe}, с близкими подходами в~\cite{levine2016end,cheng2019control,kahn2018selfsup}. Настоящая работа развивает указанное направление в части непрерывного управления и количественного анализа роли каждого уровня архитектуры.
+
+\section{Метод}
+\label{sec:method}
+
+\subsection{Постановка задачи}
+\label{sec:problem}
+
+Задача формализуется как марковский процесс принятия решений $\langle S, A, T, R, \gamma \rangle$ с непрерывными пространствами на плоской арене $10 \times 10$ м с препятствиями известной геометрии. Среда моделируется в PyBullet~\cite{coumans2021pybullet} на платформе Husky. Состояние агента
+\begin{equation}
+s_t = (\mathbf{r}_t,\ \theta_t,\ \mathbf{v}_t,\ \omega_t,\ \mathbf{g}_t,\ \ell_t)^\top \in \mathbb{R}^{n_s},
+\end{equation}
+включает координаты $\mathbf{r}_t = (x_t, y_t)$, ориентацию $\theta_t$, линейную и угловую скорости $\mathbf{v}_t, \omega_t$, относительное положение цели $\mathbf{g}_t = \mathbf{r}_g - \mathbf{r}_t$, и лидарные измерения $\ell_t \in \mathbb{R}^{16}$ (только при наличии препятствий). Действие $a_t \in [-1, 1]^2$~--- нормированные скорости левой и правой пар колёс, преобразуемые в физические $\omega_w \in [-10, 10]$ рад/с. Шаги физики и управления $1/240$ и $1/20$ с, $\gamma = 0.99$. Цель на расстоянии 2--5 м, радиус достижения 0.4 м. Эпизод завершается при достижении цели, перевороте, выходе за арену, столкновении или таймауте 500 шагов. Вознаграждение плотное (штраф за расстояние, шаговый штраф, терминальные бонус и штрафы).
+
+
+\subsection{Иерархическая архитектура управления}
+\label{sec:architecture}
+
+\begin{figure}[!htb]
+\centering
+\resizebox{0.85\columnwidth}{!}{%
+\begin{tikzpicture}[
+    >=Stealth,
+    box/.style={rectangle, draw, rounded corners=2pt, minimum height=10mm, minimum width=24mm, align=center, font=\small},
+    bigbox/.style={rectangle, draw, rounded corners=3pt, minimum height=16mm, align=center, font=\small\bfseries, fill=blue!5},
+    env/.style={rectangle, draw, rounded corners=2pt, minimum height=14mm, minimum width=22mm, align=center, font=\small, fill=gray!10},
+    label/.style={font=\scriptsize, gray},
+    node distance=4mm and 8mm
+]
+
+% Environment block
+\node[env] (env) at (0,0) {Среда\\(PyBullet, Husky,\\препятствия)};
+
+% Three levels - stacked vertically right of env
+\node[box, right=18mm of env, yshift=14mm, fill=green!10] (reactive) {Нижний: TD3};
+\node[box, right=18mm of env, fill=orange!10] (tactical) {Средний: LQR};
+\node[box, right=18mm of env, yshift=-14mm, fill=red!10] (supervisory) {Верхний:\\MapAware};
+
+% Combiner
+\node[box, right=12mm of tactical, minimum width=14mm, fill=yellow!15] (combine) {$\Sigma$};
+
+% Action arrow back to env
+\node[right=20mm of combine] (action_out) {};
+
+% Arrows: obs to each level
+\draw[->, thick] (env.east) -- node[above, label] {$o_t$} ($(reactive.west)+(-1mm,0)$);
+\draw[->, thick] (env.east) -- ($(tactical.west)+(-1mm,0)$);
+\draw[->, thick] (env.east) -- ($(supervisory.west)+(-1mm,0)$);
+
+% Levels to combiner
+\draw[->, thick] (reactive.east) -- ($(combine.north)+(0,1mm)$) node[midway, above, label, sloped] {$a_{TD3}$};
+\draw[->, thick] (tactical.east) -- node[above, label] {$\alpha u_{LQR}$} (combine.west);
+\draw[->, thick, dashed] (supervisory.east) -- node[below, label, sloped] {$\mathbb{1}_{\mathrm{map}}=1$} ($(combine.south)+(0,-1mm)$);
+
+% Combined action to env (going below env)
+\draw[->, thick] (combine.east) -- ++(8mm,0) |- ($(env.south)+(0,-2mm)$) node[midway, below, label] {$a_t$} -- (env.south);
+
+% Side labels for the three levels
+\node[label, right=2mm of reactive.east, anchor=west, yshift=-7mm] {обучаемый};
+\node[label, right=2mm of tactical.east, anchor=west, yshift=-7mm] {аналитический};
+\node[label, right=2mm of supervisory.east, anchor=west, yshift=-7mm] {модельный};
+
+\end{tikzpicture}}
+\caption{Трёхуровневая иерархическая архитектура управления.
+Нижний уровень (TD3) выдаёт нормированное действие $a_{TD3}$ на каждом
+шаге. Средний уровень (LQR-residual) выдаёт скалярную коррекцию $u_{LQR}$
+к угловой скорости, комбинируемую с весом~$\alpha$. Верхний уровень (MapAware) при выполнении условия $\mathbb{1}_{\mathrm{map}}(s_t) = 1$ замещает действие нижнего и среднего уровней согласно формуле~(\ref{eq:combine}).}
+\label{fig:strl_arch}
+\end{figure}
+
+Архитектура (рис.~\ref{fig:strl_arch}), восходящая к трёхуровневой схеме~\cite{gat1998three} и развитая для когнитивных агентов в~\cite{kiselev2020dissertation,kiselev2020}, адаптирована для непрерывного управления и включает три уровня.
+
+\textit{Нижний уровень}~--- обученная методом TD3 стратегия $\pi_{\mathrm{TD3}}(s) \to a$, опирающаяся на текущее наблюдение.
+
+\textit{Средний уровень}~--- LQR-регулятор по линеаризованной модели поперечного отклонения и отклонения курса агента от прямой к цели. Регулятор выдаёт скалярную коррекцию $u_{\mathrm{LQR}} \in [-u_{\max}, u_{\max}]$ к угловой скорости, комбинируемую с действием нижнего уровня по схеме остаточной коррекции~\cite{silver2018residual,johannink2019residual}.
+
+\textit{Верхний уровень}~--- модуль обхода препятствий по известной карте (MapAware) с индикатором активации $\mathbb{1}_{\mathrm{map}}(s) \in \{0, 1\}$. При приближении агента к препятствию в передней полусфере на расстояние ниже $d_{\mathrm{takeover}} = 1.5$ м индикатор переключается в 1, при выходе за $d_{\mathrm{release}} = 2.5$ м~--- в 0; гистерезис предотвращает дребезг. Пороги согласованы с кинематикой: $v_{\max} = \omega_{\max} \cdot r_w \approx 1.8$ м/с при $\omega_{\max} = 10$ рад/с и $r_w = 0.178$ м, тогда $d_{\mathrm{takeover}} / v_{\max} \approx 0.83$ с обеспечивает запас для смены курса. В текущей реализации уровень замещает управление в опасных конфигурациях, не предлагая последовательности подцелей; полноценный планировщик~--- естественное направление развития.
+
+Конечное действие $a_t$ на каждом шаге управления формируется правилом
+\begin{equation}
+\label{eq:combine}
+\begin{split}
+a_t = {} & \mathbb{1}_{\mathrm{map}}(s_t) \cdot a_{\mathrm{MapAware}}(s_t) \\
+& + (1 - \mathbb{1}_{\mathrm{map}}(s_t)) \cdot \mathrm{clip}\left( a_{\mathrm{TD3}}(s_t) + \alpha \cdot \begin{bmatrix} -1 \\ +1 \end{bmatrix} u_{\mathrm{LQR}}(s_t),\ -1,\ 1 \right),
+\end{split}
+\end{equation}
+где $\mathbb{1}_{\text{map}}$~--- индикатор активности верхнего уровня,
+знаки $\pm 1$ преобразуют скалярную поправку $u_{\mathrm{LQR}}$
+в дифференциальный сигнал на левую и правую пары колёс, $\alpha \in [0, 1]$~---
+фиксированный весовой коэффициент. В настоящей работе используется
+$\alpha = 0.2$. Это значение обеспечивает баланс между подавлением
+высокочастотных колебаний рулевого управления и сохранением стратегических
+решений нижнего уровня.
+
+
+\subsection{Нижний уровень: TD3}
+\label{sec:reactive}
+
+В качестве базовой стратегии используется TD3~\cite{fujimoto2018td3}, актор-критик с двойной оценкой функции ценности, задержанным обновлением актора и буфером переходов. Стратегия $\pi_\phi$ и функции ценности $Q_{\theta_1}, Q_{\theta_2}$~--- полносвязные сети со слоями 400 и 300 (ReLU), выход стратегии через $\tanh$. Обучение функций ценности минимизирует ошибку $\mathcal{L}(\theta_i) = \mathbb{E}_{(s,a,r,s') \sim \mathcal{D}}[(Q_{\theta_i}(s,a) - y)^2]$ с целевым значением $y = r + \gamma \min_{i=1,2} Q_{\theta_i'}(s', \pi_{\phi'}(s') + \varepsilon)$, $\varepsilon \sim \mathrm{clip}(\mathcal{N}(0, \sigma_t), -c, c)$, где $\theta_i', \phi'$~--- параметры целевых сетей, $\sigma_t, c$~--- параметры сглаживания. Стратегия обновляется с задержкой $d$ итераций по детерминированному policy gradient через $Q_{\theta_1}$.
+Гиперпараметры: минибатч 256, Adam с lr $10^{-3}$, $\tau = 0.005$, $d = 2$, $\sigma_t = 0.2$, $c = 0.5$, шум $\mathcal{N}(0, 0.3)$, буфер $|\mathcal{D}| = 2 \cdot 10^5$. Использована реализация \cite{raffin2021sb3}.
+
+Вектор наблюдения $o_t = (\cos\theta_t, \sin\theta_t, \mathbf{v}_t, \omega_t, \mathbf{g}_t, \ell_t)^\top$ включает ориентацию, скорости и относительное положение цели $\mathbf{g}_t$. Лидарные измерения $\ell_t \in \mathbb{R}^{16}$ получаются агрегированием 360 лучей (паспортные характеристики LDS-01 TurtleBot~3 Burger~\cite{lds01_datasheet}) в 16 секторов по $22.5^\circ$ операцией поиска минимума $\ell_t^{(k)} = \min_{j \in \mathcal{B}_k} d_t^{(j)}$. Такая агрегация гарантирует обнаружение тонких препятствий, которые могут проваливаться между лучами в низкоразрешённом сканировании. Наблюдение привилегированное, что отделяет управление от восприятия.
+
+
+\subsection{Средний уровень: LQR-residual}
+\label{sec:tactical}
+
+В системе координат, связанной с прямой от агента к цели, состояние ошибки $e = [e_y, e_\theta]^\top$ (поперечное отклонение и отклонение курса) при фиксированной опорной скорости $v_{\mathrm{ref}}$ и малых отклонениях подчиняется линеаризованной модели $\dot{e} = A e + B \omega$, где $A = \begin{bmatrix} 0 & v_{\mathrm{ref}} \\ 0 & 0 \end{bmatrix}$, $B = \begin{bmatrix} 0 \\ -1 \end{bmatrix}$. LQR находит закон управления $\omega = -K e$, минимизирующий квадратичный функционал $J = \int_0^\infty (e^\top Q e + R \omega^2)\, dt$ с $Q = \mathrm{diag}(2.0, 1.0)$, $R = 5.0$. Преобладание штрафа на управление ($R > Q_{ii}$) обеспечивает мягкие коррекции. Матрица $K$ вычисляется однократно через решение уравнения Риккати.
+
+В реализации $e_y$ обнуляется на каждом шаге: опорная прямая переопределяется от текущей позы агента к цели, и закон вырождается в $\omega = -k_\theta e_\theta$, P-регулятор по углу с коэффициентом из LQR-задачи. Выход ограничивается $|\omega| \leq u_{\max} = 0.3$.
+
+
+\subsection{Верхний уровень: обход с использованием карты}
+\label{sec:supervisory}
+
+Уровень получает карту препятствий в виде списка $\{(o^x_i, o^y_i, r_i)\}$ и вычисляет расстояния до краёв препятствий в передней полусфере $\pm \pi/2$ относительно курса агента. Активация определяется двупороговой логикой с гистерезисом: индикатор $\mathbb{1}_{\text{map}}$ переключается в 1 при пересечении $d_{\text{takeover}}$ и обратно в 0 при пересечении $d_{\text{release}}$. При активном уровне управление задаётся прямолинейным движением со скоростью $v_{\mathrm{sup}} = 0.4$ м/с и угловой скоростью $\omega_{\mathrm{sup}} = k_{\mathrm{turn}} \cdot \mathrm{sign}(-\theta_{\mathrm{nearest}})$, $k_{\mathrm{turn}} = 1.5$, где $\theta_{\mathrm{nearest}}$~--- угол на ближайшее препятствие. Простота алгоритма преднамеренна: она позволяет изолировать модельное знание о среде. Для сопоставления модельного и сенсорного знания используется также альтернативный модуль обхода по лидарным дальностям (LidarAvoid).
+
+
+\section{Эксперименты}
+\label{sec:experiments}
+
+\subsection{Конфигурация и метрики}
+\label{sec:exp_setup}
+
+Эксперименты проведены на сервере 8 ядер Ryzen 9 9950X / 16 ГБ RAM без GPU, PyBullet 3.2 в безголовом режиме, 6 параллельных сред через \verb|SubprocVecEnv|, сиды $\{200, \ldots, 209\}$, $n = 10$ запусков на ячейку. Основная метрика~--- доля успешных эпизодов (success rate). Дополнительно фиксируются длина эпизода, гладкость управления, максимальная линейная скорость и доля времени в верхнеуровневом режиме. Сравниваются пять архитектурных режимов: TD3, TD3+LQR, TD3+LidarAvoid, TD3+MapAvoid и TD3+MapAvoid+LQR.
+
+
+\subsection{Эксперимент A: множественные конфигурации препятствий}
+\label{sec:exp_a}
+
+Семь детерминированных конфигураций препятствий: одиночное препятствие на прямой, два со смещением, коридор из трёх, барьер с проходом, слалом, диагональное расположение цели, широкое препятствие.
+
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+Сценарий & TD3 & +LQR & +Lidar & +Map & +Map+LQR \\
+\midrule
+single\_on\_line     & 0/10 & 0/10 & \textbf{10/10} & \textbf{10/10} & \textbf{10/10} \\
+two\_offset         & 0/10 & 0/10 & \textbf{10/10} & \textbf{10/10} & \textbf{10/10} \\
+three\_corridor     & 0/10 & 0/10 & 0/10           & \textbf{10/10} & \textbf{10/10} \\
+barrier\_with\_gap  & \textbf{10/10} & \textbf{10/10} & \textbf{10/10} & 0/10 & 0/10 \\
+slalom              & 0/10 & 0/10 & 0/10 & 0/10           & 0/10           \\
+diagonal\_goal      & 10/10 & 10/10 & 10/10 & 10/10        & 10/10         \\
+wide\_obstacle      & 0/10 & 0/10 & 0/10 & \textbf{10/10} & \textbf{10/10} \\
+\bottomrule
+\end{tabular}
+\caption{Эксперимент~A: доля успешных эпизодов (из 10 запусков на сидах
+200--209) для семи конфигураций препятствий и пяти архитектурных режимов.
+Все ячейки 100\,\%~детерминированы.}
+\label{tab:exp_a}
+\end{center}
+\end{table}
+
+Сценарий \emph{diagonal\_goal} без препятствий на прямой решается всеми режимами и служит контролем. Сценарий \emph{slalom} не решается ни одним режимом, фиксируя границу применимости архитектуры.
+
+В сценариях \emph{single\_on\_line} и \emph{two\_offset} оба варианта верхнего уровня обеспечивают полный успех, тогда как нижний и средний уровни в одиночку не справляются: обученная стратегия идёт по прямой к цели, а LQR-коррекция общую стратегию не меняет. В \emph{three\_corridor} полный успех достигает только модельный верхний уровень, что соответствует роли стратегического уровня при известной структуре среды. Обратный паттерн наблюдается в \emph{barrier\_with\_gap}, где модельный уровень обходит барьер целиком, хотя геометрический проход проходим напрямую, и в \emph{wide\_obstacle}, где аппроксимация цилиндром малого радиуса не активирует MapAvoid на нужной дистанции. Эти сценарии указывают, что полезность каждого варианта верхнего уровня зависит от соответствия внутренней модели реальной геометрии среды.
+
+\textit{Воспроизводимость.} Результаты в таблице~\ref{tab:exp_a} полностью детерминированы: каждая ячейка имеет однозначный исход для всех сидов. Детерминированность~--- следствие фиксированности PyBullet, весов стратегии и отсутствия стохастичности в верхних уровнях.
+
+
+\subsection{Эксперимент B: переменные свойства поверхности}
+\label{sec:exp_b}
+
+Реализованы три типа поверхности: \emph{NORMAL} (трение 0.9), \emph{ICE} (0.05) и \emph{SAND} (0.6 с дополнительным сопротивлением качению). Каждый тип тестируется в двух конфигурациях, \emph{empty} и \emph{with\_obstacle}, $n = 10$.
+
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{llccccc}
+\toprule
+Поверхность & Конфиг. & TD3 & +LQR & +Lidar & +Map & +Map+LQR \\
+\midrule
+NORMAL & empty     & 10/10 & 10/10 & 10/10 & 10/10 & 10/10 \\
+NORMAL & + obst.   & 0/10  & 0/10  & 0/10  & \textbf{10/10} & \textbf{10/10} \\
+ICE    & empty     & 10/10 & 10/10 & 10/10 & 10/10 & 10/10 \\
+ICE    & + obst.   & 0/10  & 0/10  & 0/10  & 0/10  & \textbf{10/10} \\
+SAND   & empty     & 10/10 & 10/10 & 10/10 & 10/10 & 10/10 \\
+SAND   & + obst.   & 0/10  & 0/10  & \textbf{10/10}  & \textbf{10/10} & \textbf{10/10} \\
+\bottomrule
+\end{tabular}
+\caption{Эксперимент~B: доля успешных эпизодов (из 10) для трёх типов
+поверхности и двух конфигураций. Модель TD3 v3 обучена на детерминированном
+сценарии с препятствием на NORMAL и используется во всех ячейках без
+переобучения.}
+\label{tab:exp_b}
+\end{center}
+\end{table}
+
+В пустой арене нижний уровень успешен на всех трёх поверхностях, автоматически адаптируя скорость (NORMAL: $\sim 0.6$ м/с, ICE: $\sim 0.3$, SAND: $\sim 0.5$). При наличии препятствия на NORMAL и SAND задачу решает модельный верхний уровень, что согласуется с экспериментом~A. Принципиальный результат~--- сценарий ICE+obstacle, где полного успеха достигает только полная трёхуровневая конфигурация TD3+MapAvoid+LQR: без среднего уровня низкое трение приводит к проскальзыванию при попытке обхода. Это эмпирически подтверждает взаимодополнение уровней~--- ни один в отдельности не достаточен при физических ограничениях нижнего уровня.
+
+
+\section{Обсуждение}
+\label{sec:discussion}
+
+\textit{Средний уровень не меняет стратегических решений нижнего уровня.} Включение LQR-регулятора не меняет долю успеха ни в одной ячейке таблиц~\ref{tab:exp_a},~\ref{tab:exp_b}, однако подавляет высокочастотные колебания курса, что согласуется с теоретической ролью среднего уровня~\cite{kiselev2020dissertation,kiselev2020}.
+
+\textit{Верхний уровень разгружает нижний при адекватной геометрической модели.} В \emph{single\_on\_line} и \emph{two\_offset} верхний уровень обеспечивает полный успех там, где нижний не справляется. Обратный эффект в \emph{barrier\_with\_gap} и \emph{wide\_obstacle} показывает, что полезность модельного знания зависит от точности представления геометрии.
+
+\textit{Модельное знание не компенсирует физических ограничений.} На ICE+obstacle полный успех достигается только полной трёхуровневой архитектурой: верхний уровень предлагает корректную траекторию, но без LQR низкое трение приводит к проскальзыванию.
+
+\textit{Ограничения.} Использован простейший геометрический алгоритм без оптимизационного планирования, нижний уровень обучен с привилегированным наблюдением, реальная платформа не задействована.
+
+\section{Заключение}
+\label{sec:conclusion}
+
+Реализована и эмпирически исследована трёхуровневая иерархическая архитектура управления мобильным агентом с дифференциальным приводом, соотносимая с STRL~\cite{kiselev2020dissertation,kiselev2020}: нижний уровень~--- стратегия TD3, средний~--- LQR в схеме остаточной коррекции, верхний~--- модуль обхода по известной карте. Покомпонентный анализ на семи конфигурациях препятствий и трёх типах поверхности показывает, что средний уровень улучшает гладкость, верхний разгружает нижний при известной геометрии препятствий, но не компенсирует слабое сцепление колёс. Результаты полностью воспроизводимы.
+
+Направления развития: верхний уровень в полной стратегической формулировке с оптимизационным планировщиком подцелей, интеграция с мультимодальной модельной компонентой~\cite{veitsenfeld2024} и перенос на реальную платформу с ROS, требующий адаптации наблюдения (SLAM) и проверки sim-to-real разрыва.
+
+
+{\footnotesize\begin{thebibliography}{18}
+
+\bibitem{gat1998three}
+Gat E. On three-layer architectures
+// Artificial Intelligence and Mobile Robots / D.~Kortenkamp, R.~Bonasso, R.~Murphy (eds.). AAAI Press, 1998. P.~195--210.
+
+\bibitem{kiselev2020dissertation}
+Киселёв Г.~А. Интеллектуальная система планирования поведения коалиции робототехнических агентов со STRL архитектурой:
+дис. \dots канд. техн. наук. Москва, 2020. 117~с.
+
+\bibitem{kiselev2020}
+Киселёв Г.~А., Панов А.~И. Иерархическое психологически-инспирированное планирование для интеллектуальных динамических систем
+// Известия РАН. Теория и системы управления. 2020. № 1. С.~123--137.
+
+\bibitem{veitsenfeld2024}
+Вейценфельд Д.~А., Киселёв Г.~А. Метод синтеза поведения когнитивного агента на основе обработки мультимодальных сигналов
+// Моделирование и анализ данных. 2024. Т.~14. № 4. С.~45--62.
+
+\bibitem{fujimoto2018td3}
+Fujimoto S., van Hoof H., Meger D. Addressing function approximation error in actor-critic methods
+// Proc. of ICML. 2018. P.~1587--1596.
+
+\bibitem{lillicrap2016ddpg}
+Lillicrap T., Hunt J., Pritzel A. et al. Continuous control with deep reinforcement learning
+// Proc. of ICLR. 2016.
+
+\bibitem{haarnoja2018sac}
+Haarnoja T., Zhou A., Abbeel P., Levine S. Soft actor-critic: Off-policy maximum entropy deep reinforcement learning with a stochastic actor
+// Proc. of ICML. 2018. P.~1861--1870.
+
+\bibitem{schulman2017ppo}
+Schulman J., Wolski F., Dhariwal P., Radford A., Klimov O. Proximal policy optimization algorithms
+// arXiv preprint arXiv:1707.06347. 2017.
+
+\bibitem{raffin2021sb3}
+Raffin A., Hill A., Gleave A. et al. Stable-Baselines3: Reliable reinforcement learning implementations
+// Journal of Machine Learning Research. 2021. V.~22. № 268. P.~1--8.
+
+\bibitem{silver2018residual}
+Silver T., Allen K., Tenenbaum J., Kaelbling L. Residual policy learning
+// arXiv preprint arXiv:1812.06298. 2018.
+
+\bibitem{johannink2019residual}
+Johannink T., Bahl S., Nair A. et al. Residual reinforcement learning for robot control
+// Proc. of ICRA. 2019. P.~6023--6029.
+
+\bibitem{levine2016end}
+Levine S., Finn C., Darrell T., Abbeel P. End-to-end training of deep visuomotor policies
+// Journal of Machine Learning Research. 2016. V.~17. P.~1--40.
+
+\bibitem{cheng2019control}
+Cheng R., Orosz G., Murray R. M., Burdick J. W. End-to-end safe reinforcement learning through barrier functions for safety-critical continuous control tasks
+// Proc. of AAAI. 2019. P.~3387--3395.
+
+\bibitem{coumans2021pybullet}
+Coumans E., Bai Y. PyBullet, a Python module for physics simulation for games, robotics and machine learning. 2016--2021. URL: \url{http://pybullet.org}
+
+\bibitem{hewing2020lbmpc}
+Hewing L., Wabersich K. P., Menner M., Zeilinger M. N. Learning-Based Model Predictive Control: Toward Safe Learning in Control // Annual Review of Control, Robotics, and Autonomous Systems. 2020. V.~3. P.~269--296.
+
+\bibitem{brunke2022safe}
+Brunke L., Greeff M., Hall A. W., Yuan Z., Zhou S., Panerati J., Schoellig A. P. Safe Learning in Robotics: From Learning-Based Control to Safe Reinforcement Learning // Annual Review of Control, Robotics, and Autonomous Systems. 2022. V.~5. P.~411--444.
+
+\bibitem{kahn2018selfsup}
+Kahn G., Villaflor A., Ding B., Abbeel P., Levine S. Self-supervised deep reinforcement learning with generalized computation graphs for robot navigation // Proc. of IEEE ICRA. 2018. P.~5129--5136.
+
+\bibitem{lds01_datasheet}
+Robotis Co., Ltd. LDS-01 (360 Laser Distance Sensor): Spec sheet // URL: \url{https://emanual.robotis.com/docs/en/platform/turtlebot3/appendix_lds_01/}. 2017.
+
+\end{thebibliography}}
+
+\end{document}

@@ -1,31 +1,30 @@
 """
-Defensive obstacle avoidance controller.
+LidarAvoid — реактивный обход препятствий по сырому лидару.
 
-When the robot's lidar reports an obstacle within a threshold distance,
-this controller takes over and steers toward the direction of maximum
-clearance (the lidar ray with the longest free range). When all relevant
-lidar rays are clear, control returns to the underlying policy (TD3+LQR).
+Когда лидар робота фиксирует препятствие ближе порога, контроллер перехватывает
+управление и уводит робота в сторону наибольшего просвета (отворачивает на 90 градусов
+от ближайшего препятствия). Когда все релевантные лучи свободны, управление возвращается
+базовой политике (TD3 + LQR).
 
-This is the "tumbler" behavior the supervisor described in the meeting:
-multiple scenarios with hard switching by error delta (here: by min lidar).
+Роль в статье (§3.6): сенсорный двойник верхнего уровня — в отличие от MapAvoid он НЕ
+знает карту и опирается только на сырые показания лидара. Служит для сравнения «модельное
+знание о среде (MapAvoid) vs сенсорное (LidarAvoid)». Именно LidarAvoid деградирует при
+реалистичном шуме сенсора, тогда как MapAvoid — нет.
 
-The controller produces (left_wheel, right_wheel) action in the same
-normalized [-1, 1] space as TD3, so it can be directly substituted for
-the policy output when in AVOIDANCE mode.
+Контроллер выдаёт действие (левая_пара, правая_пара) в том же нормированном пространстве
+[-1, 1], что и TD3, поэтому в режиме обхода он напрямую подменяет выход политики.
 
-References:
-- The supervisor's request for scenario switching (2026-05-08 meeting,
-  blocks B and C in the journal).
-- Classical bug-style obstacle avoidance from mobile robotics
-  (Borenstein & Koren, 1991; Ulrich & Borenstein VFH, 1998 -- conceptually
-  similar but simpler).
+Источники:
+- Сценарное переключение поведения (встреча с научруком 08.05.2026, блоки B и C журнала).
+- Классический bug-подход к обходу в мобильной робототехнике
+  (Borenstein & Koren, 1991; Ulrich & Borenstein VFH, 1998 — концептуально близко, но проще).
 
-Usage:
+Использование:
     avoider = ObstacleAvoidanceController()
     if avoider.should_take_over(obs_lidar):
-        action = avoider.compute_action(obs_lidar, robot_yaw, goal_dx, goal_dy)
+        action = avoider.compute_action(obs_lidar)
     else:
-        action = td3_action  # or td3 + lqr residual
+        action = td3_action  # либо td3 + остаточная коррекция lqr
 """
 
 from __future__ import annotations
@@ -35,31 +34,30 @@ import math
 import numpy as np
 
 
-# Default thresholds. Override at construction if needed.
-DEFAULT_TAKEOVER_DIST = 1.5       # meters: takeover if any front ray < this
-DEFAULT_RELEASE_DIST = 2.5        # meters: release if all front rays > this (hysteresis)
-DEFAULT_FRONT_HALF_WIDTH = 6      # rays on each side of forward (wider arc)
-DEFAULT_FORWARD_SPEED = 0.35      # normalized [0, 1] forward speed during avoidance
-DEFAULT_TURN_GAIN = 1.5           # how aggressively to turn toward clearance
+# Пороги по умолчанию. При необходимости переопределяются в конструкторе.
+DEFAULT_TAKEOVER_DIST = 1.5       # м: включение, если любой передний луч < этого (d_takeover)
+DEFAULT_RELEASE_DIST = 2.5        # м: выключение, если все лучи > этого (гистерезис, d_release)
+DEFAULT_FRONT_HALF_WIDTH = 6      # сколько лучей с каждой стороны от направления вперёд (ширина дуги)
+DEFAULT_FORWARD_SPEED = 0.35      # нормированная [0,1] скорость вперёд во время обхода
+DEFAULT_TURN_GAIN = 1.5           # насколько агрессивно поворачивать к просвету (k_turn)
 
 
 class ObstacleAvoidanceController:
-    """Heuristic avoidance with hysteresis between takeover and release.
+    """Эвристический обход с гистерезисом между включением и выключением.
 
-    Takeover (entering avoidance mode):
-        if any of the front rays is shorter than `takeover_dist`.
+    Включение (вход в режим обхода):
+        если любой из передних лучей короче `takeover_dist`.
 
-    Release (exiting back to underlying policy):
-        if ALL front rays are longer than `release_dist`.
+    Выключение (возврат базовой политике):
+        если ВСЕ лучи длиннее `release_dist`.
 
-    Steering during avoidance:
-        find the lidar ray with the maximum clearance among ALL rays;
-        compute angle from forward to that ray;
-        turn toward it with magnitude proportional to that angle;
-        forward speed is fixed at `forward_speed` (slowed-down crawl).
+    Рулёжка во время обхода:
+        находим направление ближайшего препятствия в передней полусфере;
+        поворачиваем на 90 градусов в сторону от него с величиной, пропорциональной углу;
+        скорость вперёд фиксирована (`forward_speed`, медленное движение).
 
-    The state is kept inside the instance so the hysteresis works across
-    a whole episode. Reset by calling `reset()` between episodes.
+    Состояние хранится в экземпляре, чтобы гистерезис работал на протяжении эпизода.
+    Между эпизодами сбрасывается вызовом `reset()`.
     """
 
     def __init__(
@@ -77,9 +75,10 @@ class ObstacleAvoidanceController:
         self.front_half_width = int(front_half_width)
         self.forward_speed = float(forward_speed)
         self.turn_gain = float(turn_gain)
-        self._in_avoidance = False
+        self._in_avoidance = False     # текущее состояние режима обхода
 
     def reset(self) -> None:
+        # Сброс гистерезиса между эпизодами.
         self._in_avoidance = False
 
     @property
@@ -87,12 +86,11 @@ class ObstacleAvoidanceController:
         return self._in_avoidance
 
     def _front_ray_indices(self) -> list[int]:
-        """Indices of rays considered 'in front' of the robot.
+        """Индексы лучей, считающихся «передними».
 
-        Lidar layout in HuskyObstacleEnv: ray i has angle = yaw + 2*pi*i/N,
-        so ray 0 points along the robot's heading (forward). Front rays
-        are then 0, 1, ..., front_half_width and (N-1, N-2, ...,
-        N-front_half_width).
+        Раскладка лидара в HuskyObstacleEnv: луч i имеет угол = yaw + 2*pi*i/N,
+        поэтому луч 0 смотрит по курсу робота (вперёд). Передние лучи — это
+        0, 1, ..., front_half_width и (N-1, N-2, ..., N-front_half_width).
         """
         idx = list(range(0, self.front_half_width + 1))
         idx += list(range(self.n_lidar_rays - self.front_half_width,
@@ -100,49 +98,45 @@ class ObstacleAvoidanceController:
         return sorted(set(idx))
 
     def should_take_over(self, lidar: np.ndarray) -> bool:
-        """Decide whether avoidance mode should be active for this step.
+        """Решить, должен ли режим обхода быть активен на этом шаге.
 
-        Implements hysteresis:
-          - Takeover: any FRONT ray < takeover_dist.
-          - Release: ALL rays (front + sides, NOT just front) >
-            release_dist. This ensures we don't release while an
-            obstacle is still alongside the robot, where it could
-            become a front-ray collision again on the next yaw change.
+        Реализует гистерезис:
+          - Включение: любой ПЕРЕДНИЙ луч < takeover_dist.
+          - Выключение: ВСЕ лучи (передние + боковые, не только передние) >
+            release_dist. Так мы не выключаемся, пока препятствие ещё сбоку —
+            иначе при следующем повороте курса оно снова стало бы фронтальным.
         """
         lidar_arr = np.asarray(lidar)
         front = lidar_arr[self._front_ray_indices()]
 
-        # All rays except the strictly-rear ones:
-        # rays 0..N/2 (front + right + part of right-back) and
-        # N/2..N (left + part of left-back).
-        # Simpler: take ALL rays for release check -- the sides matter too.
-        all_relevant = lidar_arr  # full 360 degree view
+        # Для проверки выключения берём ВСЕ лучи (боковые тоже важны) — полный обзор 360°.
+        all_relevant = lidar_arr
 
         if not self._in_avoidance:
             if float(front.min()) < self.takeover_dist:
                 self._in_avoidance = True
         else:
-            # Stay in avoidance until NOTHING is close (front or side)
+            # Остаёмся в обходе, пока хоть что-то близко (спереди или сбоку).
             if float(all_relevant.min()) > self.release_dist:
                 self._in_avoidance = False
 
         return self._in_avoidance
 
     def compute_action(self, lidar: np.ndarray) -> np.ndarray:
-        """Compute (left_wheel, right_wheel) action that steers AWAY from
-        the closest obstacle direction.
+        """Вычислить действие (левая_пара, правая_пара), уводящее ОТ направления
+        на ближайшее препятствие.
 
-        Strategy: rather than "go where it's clear" (which can underturn
-        and send the robot grazing into the obstacle), we identify the
-        direction of the closest obstacle in the front hemisphere and
-        turn by 90 degrees away from it. This guarantees a strong
-        evasive turn proportional to obstacle proximity.
+        Стратегия: не «ехать туда, где свободно» (это часто недоворачивает и робот
+        чиркает по препятствию), а определить направление ближайшего препятствия в
+        передней полусфере и отвернуть от него на 90 градусов. Это даёт сильный
+        манёвр уклонения, пропорциональный близости препятствия.
 
-        If the closest obstacle is directly ahead (angle ~ 0), we pick
-        a side based on which side has more total clearance.
+        Если ближайшее препятствие прямо по курсу (угол ~ 0), выбираем сторону по
+        тому, где суммарно больше просвета.
         """
         lidar = np.asarray(lidar, dtype=np.float32)
 
+        # Углы лучей в локальной СК робота, приведённые к [-pi, pi].
         angles = np.array(
             [2.0 * math.pi * i / self.n_lidar_rays
              for i in range(self.n_lidar_rays)],
@@ -150,23 +144,22 @@ class ObstacleAvoidanceController:
         )
         angles = np.where(angles > math.pi, angles - 2.0 * math.pi, angles)
 
-        # Consider only front hemisphere for finding the obstacle direction
+        # Рассматриваем только переднюю полусферу при поиске направления препятствия.
         front_mask = np.abs(angles) <= (math.pi / 2.0 + 0.1)
-        # For finding closest obstacle, use lidar values; for non-front rays
-        # set to a large value so they don't win the argmin.
+        # Для поиска ближайшего препятствия: непередним лучам ставим большое значение,
+        # чтобы они не выиграли argmin.
         front_lidar_for_min = np.where(front_mask, lidar, 1e6)
         closest_idx = int(np.argmin(front_lidar_for_min))
         obstacle_angle = float(angles[closest_idx])
 
-        # Turn 90 degrees AWAY from the obstacle.
-        # If obstacle is at angle a (in [-pi, pi]), turn target is a +/- pi/2,
-        # whichever lies in the front hemisphere.
-        # Sign convention: positive turn = turn left (positive yaw rate).
-        # Obstacle on the right (a < 0) -> turn left (target = a + pi/2 > 0).
-        # Obstacle on the left  (a > 0) -> turn right (target = a - pi/2 < 0).
-        # Obstacle dead ahead (a ~ 0)   -> pick side by total clearance.
+        # Отворачиваем на 90 градусов ОТ препятствия.
+        # Препятствие под углом a (в [-pi, pi]) -> цель поворота a +/- pi/2 (та, что в передней полусфере).
+        # Знак: положительный поворот = влево (положительная угловая скорость).
+        # Препятствие справа (a < 0)  -> поворот влево (цель = a + pi/2 > 0).
+        # Препятствие слева  (a > 0)  -> поворот вправо (цель = a - pi/2 < 0).
+        # Препятствие по курсу (a ~ 0) -> сторона по суммарному просвету.
         if abs(obstacle_angle) < 1e-3:
-            # Tie-break by total clearance on each side
+            # Разрешение неоднозначности по суммарному просвету слева/справа.
             n_quarter = self.n_lidar_rays // 4
             left_clr = float(lidar[1: n_quarter + 1].mean())
             right_clr = float(lidar[self.n_lidar_rays - n_quarter:].mean())
@@ -175,20 +168,19 @@ class ObstacleAvoidanceController:
             else:
                 target_angle = -math.pi / 2.0
         elif obstacle_angle > 0:
-            # Obstacle on the left -> evade right
+            # Препятствие слева -> уходим вправо.
             target_angle = obstacle_angle - math.pi / 2.0
         else:
-            # Obstacle on the right -> evade left
+            # Препятствие справа -> уходим влево.
             target_angle = obstacle_angle + math.pi / 2.0
 
-        # Differential-drive command: forward + turn
-        # turn > 0 means turn left (positive angular velocity)
+        # Команда дифпривода: вперёд + поворот; turn > 0 — поворот влево.
         turn = float(np.clip(self.turn_gain * target_angle / math.pi, -1.0, 1.0))
 
         forward = self.forward_speed
 
-        # Differential mapping: left wheel = forward - turn, right = forward + turn
-        # (turn left => slow left wheel, speed up right wheel)
+        # Дифференциальная раскладка: левая пара = вперёд - поворот, правая = вперёд + поворот
+        # (поворот влево => притормозить левую пару, ускорить правую).
         left = forward - turn
         right = forward + turn
 

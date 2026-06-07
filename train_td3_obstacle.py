@@ -69,22 +69,26 @@ def main():
         sigma=0.3 * np.ones(n_actions),
     )
 
+    # Гиперпараметры TD3 (§3.4 статьи). Сети актора и критиков 400-300 — дефолт MlpPolicy в SB3.
     model = TD3(
-        policy="MlpPolicy",
+        policy="MlpPolicy",       # актор + два критика, полносвязные 400-300, ReLU, выход tanh
         env=train_env,
         action_noise=action_noise,
-        learning_rate=1e-3,
-        buffer_size=200_000,      # больше, задача сложнее
-        learning_starts=2_000,    # больше начального опыта до тренировки
-        batch_size=256,
-        gamma=0.99,
-        tau=0.005,
-        train_freq=(1, "step"),
+        learning_rate=1e-3,       # шаг Adam
+        buffer_size=200_000,      # размер replay-буфера (больше — задача сложнее)
+        learning_starts=2_000,    # сколько шагов собирать опыт до старта обучения
+        batch_size=256,           # размер мини-батча
+        gamma=0.99,               # дисконт-фактор
+        tau=0.005,                # коэффициент мягкого обновления целевых сетей
+        train_freq=(1, "step"),   # одно обновление на каждом шаге среды
         gradient_steps=1,
         verbose=1,
         tensorboard_log=str(LOGS_DIR / "tb"),
         seed=SEED,
     )
+    # Отложенное обновление актора (policy_delay=2) и сглаживание целевого действия
+    # (target_policy_noise=0.2, target_noise_clip=0.5) берутся из дефолтов SB3 TD3 —
+    # это те самые d, sigma, c из §3.4.
 
     eval_callback = EvalCallback(
         eval_env,

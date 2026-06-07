@@ -107,11 +107,11 @@ class LQRDiffDriveLateral:
         Q = np.diag([Q_y, Q_theta])
         R = np.array([[R_omega]])
 
-        # Solve continuous ARE — однократный вызов при инициализации.
+        # Решаем непрерывное уравнение Риккати (ARE) — однократно при инициализации.
         # self.K сохраняется и используется на каждом шаге без пересчёта,
         # что отличает LQR от MPC (где оптимизация — на каждом такте).
         P = solve_continuous_are(A, B, Q, R)
-        # Optimal gain
+        # Оптимальное усиление K
         self.K = np.linalg.inv(R) @ B.T @ P  # shape (1, 2)
 
     def compute_correction(

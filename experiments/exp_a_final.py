@@ -1,17 +1,17 @@
 """
-Experiment A FINAL: deterministic obstacle on path, 5-config comparison.
+Эксперимент A (финальный прогон): детерминированное препятствие на пути, сравнение 5 режимов.
 
-Configurations (all use the same trained TD3 model):
-  1. TD3 only            -- baseline reactive policy
-  2. TD3 + LQR           -- residual policy with classical controller
-  3. TD3 + Lidar Avoid   -- heuristic obstacle avoidance using lidar (no map)
-  4. TD3 + Map Avoid     -- map-aware avoidance (knows obstacle positions)
-  5. TD3 + Map Avoid + LQR  -- combined (avoidance dominant when active)
+Режимы (все используют ОДНУ и ту же обученную модель TD3, без переобучения):
+  1. TD3                  -- только нижний реактивный уровень (базовая политика)
+  2. TD3 + LQR            -- остаточная схема с классическим регулятором (нижний + средний)
+  3. TD3 + LidarAvoid     -- эвристический обход по сырому лидару, без карты (сенсорный верхний)
+  4. TD3 + MapAvoid       -- обход по известной карте (модельный верхний)
+  5. TD3 + MapAvoid + LQR -- полная тройка (верхний доминирует, когда активен)
 
-Reports per-config: success rate, collision rate, steps, reward,
-smoothness, fraction of episode in avoidance mode.
+По каждому режиму считается: доля успеха, доля столкновений, число шагов, награда,
+гладкость управления и доля эпизода в режиме обхода.
 
-Also produces a trajectory plot showing all configurations.
+Также строит график траекторий всех режимов (рис. 2 статьи).
 """
 
 from __future__ import annotations
@@ -47,6 +47,11 @@ def run_episode(
     use_map_avoid=False, map_avoider=None,
     max_steps=500,
 ):
+    """Прогнать один эпизод с заданной комбинацией уровней и собрать метрики.
+
+    Флаги use_* включают соответствующие уровни; на каждом шаге индикатор верхнего
+    уровня (MapAvoid/LidarAvoid) решает, кто формирует действие.
+    """
     obs, info = env.reset(seed=seed)
     if lidar_avoider is not None: lidar_avoider.reset()
     if map_avoider is not None: map_avoider.reset()
@@ -67,7 +72,8 @@ def run_episode(
         yaw = math.atan2(sy_yaw, cy_yaw)
         lidar = obs[-N_LIDAR_RAYS:]
 
-        # Choose action source
+        # --- Выбор источника действия (индикаторное переключение уровней) ---
+        # Если активен верхний уровень (Map/Lidar), он ЗАМЕЩАЕТ нижний+средний.
         in_avoid = False
         if use_map_avoid and map_avoider is not None:
             obstacles = env._obstacle_positions
@@ -80,15 +86,19 @@ def run_episode(
                 in_avoid = True
 
         if not in_avoid:
+            # Верхний уровень неактивен -> базовое действие даёт нижний уровень (TD3).
             td3_action, _ = model.predict(obs, deterministic=True)
             if use_lqr and lqr is not None and alpha > 0:
+                # Средний уровень: восстановить цель в мировой СК (obs[7:9] — вектор к цели),
                 gx = rx + float(obs[7])
                 gy = ry + float(obs[8])
+                # посчитать курсовую LQR-коррекцию и сложить остаточно: a = a_TD3 + alpha*u_LQR.
                 lqr_corr = lqr.compute_correction(rx, ry, yaw, gx, gy)
                 final_action = combine_actions(td3_action, lqr_corr, alpha=alpha)
             else:
                 final_action = td3_action
         else:
+            # Шаг прошёл под управлением верхнего уровня (для метрики avoidance_fraction).
             avoidance_steps += 1
 
         actions.append(np.asarray(final_action).copy())
@@ -103,6 +113,8 @@ def run_episode(
             break
 
     actions = np.asarray(actions)
+    # Гладкость управления: средняя норма приращения действия между шагами
+    # (меньше = плавнее руль; именно эту метрику улучшает средний уровень LQR).
     smoothness = (
         float(np.linalg.norm(np.diff(actions, axis=0), axis=1).mean())
         if len(actions) > 1 else 0.0
@@ -229,6 +241,7 @@ def main():
     seeds = [args.seed_base + i for i in range(args.seeds)]
 
     def make_env():
+        # Детерминированная среда: препятствие в фиксированной точке -> воспроизводимый исход.
         return HuskyObstacleDeterministicEnv(
             render_mode=None,
             goal_distance=args.goal_distance,
@@ -237,6 +250,7 @@ def main():
             obstacle_radius=args.obstacle_radius,
         )
 
+    # Пять сравниваемых режимов (табл. 1): от чистого нижнего уровня до полной тройки.
     configs = [
         ("TD3",              dict()),
         ("TD3+LQR",          dict(use_lqr=True, lqr=lqr, alpha=args.alpha)),

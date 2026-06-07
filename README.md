@@ -1,374 +1,86 @@
-# dccn-husky-rl
+# Иерархическая когнитивная архитектура управления мобильным роботом
 
-Воспроизводимая реализация гибридной архитектуры управления для мобильного робота **Husky** в среде **PyBullet**: реактивная политика **TD3** + слой уточнения на основе **LQR** (схема Residual Policy) + классический **goal-conditioned waypoint-планировщик**.
+Воспроизводимая реализация к статье **DCCN-2026** «Иерархическая когнитивная
+архитектура управления для мобильной робототехнической платформы».
+Поданный текст: [`paper/latex/paper.pdf`](paper/latex/paper.pdf).
 
-Сопровождает статью «Метод синтеза поведения когнитивного агента на основе обработки мультимодальных сигналов» (DCCN-2026).
+Рассматривается навигация мобильного агента с дифференциальным приводом (Husky)
+к цели на плоской арене с препятствиями известной геометрии и переменным трением.
+Реализована **трёхуровневая иерархическая (STRL) архитектура**, и количественно
+измерен функциональный вклад каждого уровня на 65 ablation-конфигурациях
+($7\times5 + 6\times5$, по $n=10$ детерминированных запусков).
 
-## Содержание
+## Архитектура
 
-- [Что внутри](#что-внутри)
-- [Установка](#установка)
-- [Быстрый запуск (eval)](#быстрый-запуск-eval)
-- [Обучение с нуля](#обучение-с-нуля)
-- [Структура репозитория](#структура-репозитория)
-- [Воспроизведение результатов статьи](#воспроизведение-результатов-статьи)
-- [Демо-видео](#демо-видео)
-- [Эксперимент A — детерминированное препятствие](#эксперимент-a--детерминированное-препятствие)
-- [Тесты](#тесты)
-- [Зависимости](#зависимости)
+![Архитектура](figures/architecture.svg)
 
----
+| Уровень | Что | Реализация |
+|---|---|---|
+| **Нижний (реактивный)** | стратегия TD3, действует на каждом шаге | [`train_td3_obstacle.py`](train_td3_obstacle.py), [`envs/husky_obstacle_env.py`](envs/husky_obstacle_env.py) |
+| **Средний (тактический)** | LQR-residual, сглаживание курса ($e_y=0$, α=0.2) | [`controllers/lqr_diff_drive.py`](controllers/lqr_diff_drive.py) |
+| **Верхний (супервизорный)** | обход по карте MapAvoid (гистерезис 1.5/2.5 м) | [`controllers/map_aware_avoidance.py`](controllers/map_aware_avoidance.py) |
+| *сравнение* | сенсорный обход LidarAvoid (по сырому лидару) | [`controllers/obstacle_avoidance.py`](controllers/obstacle_avoidance.py) |
 
-## Что внутри
+Конечное действие: при активном верхнем уровне ($\mathbb{1}_{map}=1$) он замещает
+нижний+средний; иначе $a = \mathrm{clip}(a_{TD3} + \alpha\,u_{LQR})$.
+Наблюдение нижнего уровня содержит лидар LDS-01 (360 лучей → min-pool в 16 секторов).
 
-Реализованы три слоя управления и среда моделирования:
+## Эксперименты
 
-| Слой | Файл | Описание |
-|------|------|----------|
-| Среда (пустая арена) | `envs/husky_goal_env.py` | Husky едет в случайную точку на пустой плоскости 10×10. Observation 9D: pose + velocity + goal_vector. |
-| Среда (с препятствиями) | `envs/husky_obstacle_env.py` | То же + 3–5 случайных цилиндров. Observation 25D (добавлены 16 лучей лидара). |
-| Реактивная policy | внешняя (TD3 из `stable-baselines3`) | Continuous control, 2D action: linear + angular velocity. |
-| LQR Residual | `controllers/lqr_diff_drive.py` | Линеаризованный LQR-контроллер для удержания траектории; выход смешивается с TD3 как `a = π_TD3(s) + α · π_LQR(s)`. |
-| Waypoint-планировщик | `planners/waypoint_planner.py` | Делит линию старт-цель на N подцелей; переключение по радиусу. |
-| Wrapper-среда | `envs/husky_goal_planned_env.py` | Generic-обёртка, подменяющая `goal` на текущий waypoint. Работает над любой inner-средой. |
+Сервер 8×Ryzen 9 9950X / 16 ГБ, PyBullet headless, 6 сред через `SubprocVecEnv`,
+сиды 200–209, $n=10$. Метрика — доля успеха. Пять режимов:
+`TD3 / +LQR / +LidarAvoid / +MapAvoid / +MapAvoid+LQR`.
 
-Видеодемонстрация работы — три эпизода в папке [`videos/`](videos/), см. также раздел [Демо-видео](#демо-видео) ниже.
+### Эксперимент A — геометрия препятствий ([`experiments/exp_a_final.py`](experiments/exp_a_final.py))
 
----
+7 конфигураций × 5 режимов (табл. 1 статьи). Ключевое: верхний уровень разгружает
+нижний при точной карте (`single_on_line`, `two_offset`, `three_corridor`,
+`wide_obstacle`), но мешает там, где геометрия модели расходится с реальной
+(`barrier_with_gap` — проход проходится только нижним/сенсорным уровнем). `slalom`
+не решается никем — граница применимости.
 
-## Установка
+<p>
+<img src="paper/latex/figures/traj_single_on_line.png" width="32%"/>
+<img src="paper/latex/figures/traj_three_corridor.png" width="32%"/>
+<img src="paper/latex/figures/traj_barrier_with_gap.png" width="32%"/>
+</p>
 
-Требуется Python 3.11.
+Видеодемонстрация пяти режимов — [`videos/exp_a/`](videos/exp_a/):
+[TD3](videos/exp_a/01_TD3_only.mp4) ·
+[+LQR](videos/exp_a/02_TD3_LQR.mp4) ·
+[+LidarAvoid](videos/exp_a/03_TD3_LidarAvoid.mp4) ·
+[+MapAvoid](videos/exp_a/04_TD3_MapAvoid.mp4) ·
+[+MapAvoid+LQR](videos/exp_a/05_TD3_MapAvoid_LQR.mp4).
 
-```bash
-# 1. Клонировать репозиторий
-git clone https://github.com/GK-Asp-hub/-dccn-husky-rl.git dccn-husky-rl
-cd dccn-husky-rl
+### Эксперимент B — свойства поверхности
 
-# 2. Создать виртуальное окружение
-python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# Linux / macOS:
-source .venv/bin/activate
+3 поверхности (NORMAL/ICE/SAND) × {empty, with_obstacle} × 5 режимов (табл. 2).
+Принципиальный результат: `ICE + obstacle` решается **только** полной тройкой
+`TD3+MapAvoid+LQR` — без среднего уровня робот проскальзывает при обходе.
+Прогонный скрипт Эксп. B (`exp_b_global_surfaces.py`) и обученные модели — в
+приватном репозитории `dccn-experiments` (он же содержит задел статьи 2,
+стратегический планировщик).
 
-# 3. Установить зависимости
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-Если возникнут конфликты версий — используйте `requirements-lock.txt` (точные версии, на которых получены все результаты статьи):
-
-```bash
-pip install -r requirements-lock.txt
-```
-
-### Скачать предобученные модели
-
-Веса моделей TD3 размещены в [Releases v1.0](../../releases/tag/v1.0). Скачайте архив `models.zip` и распакуйте в корень репозитория — должна получиться папка `models/`:
-
-```
-models/
-├── husky_td3_v1_cont_best/best_model.zip       # Stage 1 (пустая арена)
-├── husky_obstacle_td3_v1_best/best_model.zip   # Stage 2a v1 (слабая, до фикса лидара)
-└── husky_obstacle_td3_v3_steppen036_best/best_model.zip   # Stage 2a v3 (финальная)
-```
-
----
-
-## Быстрый запуск (eval)
-
-Все три команды используют CPU, занимают 1–3 минуты и выводят таблицу метрик в консоль + сохраняют JSON.
-
-### Stage 1: пустая арена (5 режимов × 10 эпизодов)
+## Воспроизводимость
 
 ```bash
-python eval_td3_lqr_planner.py
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt        # точные версии — requirements-lock.txt
+python experiments/exp_a_final.py      # таблица 1
+python experiments/exp_a_video_mp4.py  # видео + траектории (рис. 2)
+pytest test_lqr_unit.py test_husky_obstacle_smoke.py
 ```
 
-Результат: `ablation_results.json`. Ожидаемые числа:
-
-| Режим | Success | Steps | Smoothness |
-|---|---|---|---|
-| TD3 baseline | 10/10 | 76.6 | 0.196 |
-| TD3 + LQR (α=0.2) | 10/10 | 77.4 | 0.176 |
-| TD3 + LQR + Planner N=3 | 9/10 | 120.9 | 0.288 |
-
-### Stage 2a: с препятствиями, 30 сидов, финальная модель v3
-
-```bash
-python eval_td3_lqr_planner_obstacle.py ^
-    --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip ^
-    --episodes 30
-```
-
-Результат: `ablation_results_obstacle.json`. Ожидаемые числа:
-
-| Режим | Success | Collisions | Steps | Smoothness |
-|---|---|---|---|---|
-| TD3 baseline (v3) | 27/30 | 3/30 | 65.4 ± 39 | 0.322 |
-| TD3 + LQR (α=0.2) | 27/30 | 3/30 | 66.9 ± 44 | 0.302 |
-| TD3 + LQR + Planner N=3 | 25/30 | 3/30 | 111.4 ± 127 | 0.285 |
-| TD3 + LQR + Planner N=5 | 25/30 | 3/30 | 119.8 ± 128 | 0.315 |
-
-### Stage 2a v1 (контрольная модель до фикса лидара)
-
-```bash
-python eval_td3_lqr_planner_obstacle.py ^
-    --model models/husky_obstacle_td3_v1_best/best_model.zip ^
-    --episodes 30
-```
-
-Демонстрирует противоположный эффект planner'а на слабой policy (см. раздел 5 статьи).
-
-### Визуализация в GUI
-
-**Stage 1 (пустая арена):**
-
-```bash
-python visual_planned_husky.py ^
-    --model models/husky_td3_v1_cont_best/best_model.zip ^
-    --episodes 3
-```
-
-**Stage 2a (с препятствиями) — финальная модель v3:**
-
-```bash
-python visual_obstacle_husky.py ^
-    --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip ^
-    --episodes 3 --seed-base 300
-```
-
-**Stage 2a с планировщиком (главный результат статьи):**
-
-```bash
-python visual_obstacle_husky.py ^
-    --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip ^
-    --episodes 3 --seed-base 300 --planner --n-waypoints 3
-```
-
-В окне PyBullet будут видны:
-- красный цилиндр — финальная цель;
-- зелёный цилиндр — активная подцель планировщика (только в режиме `--planner`);
-- синие — пройденные подцели, серые — ещё не активированные;
-- жёлтые лучи из робота — лидар (только Stage 2a);
-- цилиндры случайной высоты — препятствия (только Stage 2a).
-
-#### Запись видео
-
-Оба `visual_*.py` поддерживают флаг `--record PATH` для записи окна PyBullet в mp4. Камера выставляется автоматически (вид сверху-сбоку, центр в начале координат). Запись начинается в первом эпизоде и останавливается по его завершению.
-
-Требование: `ffmpeg` в `PATH` (PyBullet вызывает его popen'ом для кодирования h264).
-
-```bash
-python visual_planned_husky.py ^
-    --model models/husky_td3_v1_cont_best/best_model.zip ^
-    --episodes 1 --seed-base 200 --slowdown 2 ^
-    --record videos/01_stage1_baseline.mp4
-```
-
-Готовые ролики, использованные при подготовке статьи, лежат в `videos/` — см. раздел [Демо-видео](#демо-видео).
-
----
-
-## Обучение с нуля
-
-### Stage 1 (пустая арена), ~15 минут CPU
-
-```bash
-python train_td3_husky.py
-```
-
-Сохраняет лучшую модель в `models/husky_td3_v1_best/`.
-
-### Stage 2a (с препятствиями), ~80 минут CPU
-
-```bash
-python train_td3_obstacle.py
-```
-
-Сохраняет лучшую модель в `models/husky_obstacle_td3_v1_best/`.
-
-Прогресс пишется в `runs/` (tensorboard). Просмотр:
-
-```bash
-tensorboard --logdir runs
-```
-
----
-
-## Структура репозитория
-
-```
-dccn-husky-rl/
-├── envs/                          # gymnasium-среды
-│   ├── husky_goal_env.py          # пустая арена
-│   ├── husky_obstacle_env.py      # с препятствиями + лидар
-│   └── husky_goal_planned_env.py  # generic-обёртка с планировщиком
-├── controllers/
-│   └── lqr_diff_drive.py          # LQR для differential drive
-├── planners/
-│   └── waypoint_planner.py        # линейный waypoint-планировщик
-├── train_td3_husky.py             # обучение Stage 1
-├── train_td3_obstacle.py          # обучение Stage 2a
-├── eval_td3_lqr.py                # eval только LQR-residual
-├── eval_td3_lqr_planner.py        # full ablation Stage 1
-├── eval_td3_lqr_planner_obstacle.py  # full ablation Stage 2a
-├── visual_planned_husky.py        # GUI-визуализация Stage 1
-├── visual_obstacle_husky.py       # GUI-визуализация Stage 2a (с лидаром и препятствиями)
-├── plot_trajectories.py           # графики траекторий Stage 1
-├── plot_trajectories_obstacle.py  # графики траекторий Stage 2a
-├── make_report_figures.py         # сводные графики (training curves, planner effect)
-├── test_*.py                      # юнит- и smoke-тесты
-├── ablation_results*.json         # сохранённые таблицы метрик из статьи
-├── figures/                       # сгенерированные графики (PNG, SVG)
-├── videos/                        # 3 демо-эпизода (mp4, см. раздел «Демо-видео»)
-├── requirements.txt               # минимальные зависимости
-└── requirements-lock.txt          # точные версии (для воспроизводимости)
-```
-
----
-
-## Воспроизведение результатов статьи
-
-Команды ниже воспроизводят все таблицы и графики из разделов 4–5 статьи. Полный прогон — около 5 минут на CPU.
-
-```bash
-# Таблица 5.1 (Stage 1)
-python eval_td3_lqr_planner.py
-
-# Таблица 5.2 (Stage 2a v3, 30 сидов)
-python eval_td3_lqr_planner_obstacle.py --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip --episodes 30
-
-# Контрольная таблица v1 vs v3
-python eval_td3_lqr_planner_obstacle.py --model models/husky_obstacle_td3_v1_best/best_model.zip --episodes 30
-
-# Графики траекторий (рис. 5.1 и 5.3 статьи)
-python plot_trajectories.py
-python plot_trajectories_obstacle.py --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip
-
-# Сводные графики (рис. 5.4 и 5.5 статьи)
-python make_report_figures.py
-```
-
----
-
-## Демо-видео
-
-Папка [`videos/`](videos/) содержит три эпизода, иллюстрирующие главное эмпирическое наблюдение статьи: **полезность waypoint-планировщика обратно пропорциональна качеству underlying policy**. Все ролики записаны через флаг `--record` тех же `visual_*.py` скриптов (см. [Запись видео](#запись-видео)).
-
-### Как посмотреть
-
-GitHub в файловом дереве не показывает встроенный плеер для mp4 — клик по файлу открывает blame-view без воспроизведения. Есть два рабочих пути:
-
-1. **Release v1.1-media** ([прямая ссылка](https://github.com/GK-Asp-hub/-dccn-husky-rl/releases/tag/v1.1-media)) — каждый файл скачивается одним кликом по ссылке в разделе *Assets*. Это рекомендуемый способ.
-2. **Файл в репо** → клик по имени файла в таблице ниже → на открывшейся странице нажать кнопку **«View raw»** (ссылка вверху справа над содержимым). Браузер скачает файл; откройте в локальном плеере (VLC, MPC, любой системный).
-
-Видео — стандартный H.264 / yuv420p в контейнере mp4, играют в любом современном плеере.
-
-### Эпизоды
-
-| Файл в репо | Скачать (Release) | Длит. | Что показано |
-|------|------|-------|--------------|
-| [`01_stage1_baseline.mp4`](videos/01_stage1_baseline.mp4) | [⬇](https://github.com/GK-Asp-hub/-dccn-husky-rl/releases/download/v1.1-media/01_stage1_baseline.mp4) | 3.5 с | Stage 1, пустая арена, seed=200. TD3 + LQR доходит до цели за 62 шага. Базовая ситуация. |
-| [`02_stage2a_v3_baseline.mp4`](videos/02_stage2a_v3_baseline.mp4) | [⬇](https://github.com/GK-Asp-hub/-dccn-husky-rl/releases/download/v1.1-media/02_stage2a_v3_baseline.mp4) | 44 с | Stage 2a v3, арена с препятствиями, seed=304. TD3 v3 (без планировщика) доходит за 76 шагов, без коллизий. |
-| [`03_stage2a_v3_planner.mp4`](videos/03_stage2a_v3_planner.mp4) | [⬇](https://github.com/GK-Asp-hub/-dccn-husky-rl/releases/download/v1.1-media/03_stage2a_v3_planner.mp4) | 4:51 | Stage 2a v3 + waypoint-планировщик N=3, **тот же seed 304, та же policy**. Эпизод заканчивается timeout'ом на 500 шагов, reward −856.74. |
-
-Эпизоды 02 и 03 различаются только включённым планировщиком — всё остальное (модель, среда, seed) идентично. Совместный просмотр визуально воспроизводит negative effect планировщика на сильной policy (−6.7 п.п. в success rate на полном ablation 30 сидов, см. таблицу выше).
-
-### Команды для воспроизведения с нуля
-
-```bash
-python visual_planned_husky.py --model models/husky_td3_v1_cont_best/best_model.zip --episodes 1 --seed-base 200 --slowdown 2 --record videos/01_stage1_baseline.mp4
-python visual_obstacle_husky.py --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip --episodes 1 --seed-base 304 --slowdown 2 --record videos/02_stage2a_v3_baseline.mp4
-python visual_obstacle_husky.py --model models/husky_obstacle_td3_v3_steppen036_best/best_model.zip --episodes 1 --seed-base 304 --slowdown 2 --planner --n-waypoints 3 --record videos/03_stage2a_v3_planner.mp4
-```
-
----
-
-## Эксперимент A — детерминированное препятствие
-
-Дополнительный эксперимент за рамками статьи: **препятствие фиксировано на прямой между стартом и целью**. Сравнивает пять контуров управления на одной и той же постановке, чтобы локализовать границу применимости чисто реактивной политики и показать минимальное расширение архитектуры, которое её закрывает.
-
-Подробное описание, таблица результатов и пять видео — в [`videos/exp_a/README.md`](videos/exp_a/README.md).
-
-### Главный результат
-
-| Контур управления | Итог на сиде 1000 |
-|---|---|
-| TD3 alone | ❌ collision на 19 шаге |
-| TD3 + LQR-residual (α=0.2) | ❌ collision на 19 шаге |
-| TD3 + лидарный avoidance | ❌ collision на 45 шаге |
-| **TD3 + map-aware avoidance** | ✅ goal_reached на 228 шаге |
-| TD3 + map-aware avoidance + LQR | ✅ goal_reached на 228 шаге |
-
-Чисто реактивная политика TD3 (с LQR-residual или без) врезается в препятствие за одну секунду — это out-of-distribution относительно тренировочного распределения (`v3_steppen036` обучалась на случайно расставленных препятствиях, не на конфигурации «препятствие точно по курсу с самого старта»). Лидарный avoidance не закрывает задачу из-за углового разрешения 22.5° на 16 лучах. Map-aware avoidance, использующий точные координаты препятствий (proxy для SLAM-карты или предоставленной геометрии), решает задачу на 100%.
-
-### Запуск
-
-Headless-ablation с траекторным графиком и JSON:
-
-```bash
-python experiments/exp_a_final.py --seeds 3
-```
-
-Запись видео всех пяти конфигураций (требуется ffmpeg в PATH):
-
-```bash
-python experiments/exp_a_video_mp4.py
-```
-
-### Файлы
-
-| Назначение | Путь |
-|---|---|
-| Детерминированная среда | `envs/husky_obstacle_deterministic_env.py` |
-| Лидарный avoidance | `controllers/obstacle_avoidance.py` |
-| Map-aware avoidance | `controllers/map_aware_avoidance.py` |
-| Альтернативный goal-redirect | `controllers/goal_redirect.py` |
-| Eval pipeline | `experiments/exp_a_final.py` |
-| Запись видео | `experiments/exp_a_video_mp4.py` |
-| Видео и подробное описание | [`videos/exp_a/`](videos/exp_a/) |
-
----
-
-## Тесты
-
-Smoke- и юнит-проверки на ключевые компоненты. Каждый тест — самостоятельный скрипт, запускается напрямую и печатает диагностику в консоль:
-
-```bash
-# Юнит на LQR (быстро, без PyBullet)
-python test_lqr_unit.py
-python test_waypoint_planner.py
-
-# Smoke-тесты сред (требуют PyBullet, открывают headless-симуляцию)
-python test_husky_env.py
-python test_husky_obstacle_smoke.py
-python test_husky_planned_env_smoke.py
-python test_obstacle_planned_smoke.py
-```
-
-Покрытие: проверка матрицы K в LQR, формирование waypoints, корректность observation/reward в трёх gym-средах, smoke-проход эпизода с планировщиком.
-
----
-
-## Зависимости
-
-Основные: **stable-baselines3 2.8** (TD3), **gymnasium 1.2**, **PyBullet 3.2.6**, **NumPy 2.x**, **SciPy 1.17**, **Matplotlib 3.10**. Все версии из `requirements-lock.txt` проверены в среде Python 3.11.9 на Windows. Linux/macOS должны работать без правок (абсолютные пути в коде отсутствуют).
-
-PyTorch ставится автоматически как зависимость stable-baselines3. Достаточно CPU-версии — все эксперименты проводились на CPU (Intel x86-64).
-
----
+Детерминированность — свойство сцены: фиксированные стартовые условия PyBullet +
+фиксированные веса стратегии + отсутствие стохастики в верхних уровнях → каждая
+ячейка таблиц имеет однозначный исход на всех сидах.
+
+## Что НЕ входит сюда
+
+Обучаемый стратегический планировщик, sim2real и весь черновой/отладочный код
+живут в приватном `dccn-experiments`. Здесь — только то, что соответствует
+поданной статье.
 
 ## Лицензия
 
-MIT.
-
----
-
-## Ссылки
-
-- Статья: «Метод синтеза поведения когнитивного агента на основе обработки мультимодальных сигналов», DCCN-2026 (РУДН).
-- Базовая работа: Вейценфельд, Киселёв (2024).
-- Реализация TD3: Fujimoto et al., ICML-2018.
-- Residual Policy Learning: Silver et al. (2018), Johannink et al. (2019).
+См. [LICENSE](LICENSE).

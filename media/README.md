@@ -27,6 +27,7 @@
 ### `exp_a/videos_scenarios/` — отдельные сценарии в динамике
 Ролики по конкретным сценариям: `two_offset`, `three_corridor`, `barrier_with_gap`,
 `slalom`, `diagonal_goal`, `wide_obstacle` (для wide_obstacle — и MapAvoid, и LidarAvoid).
+GIF-превью тех же роликов (ускорены 2×, для быстрого просмотра без плеера) — в `exp_a/videos_scenarios_gif/`.
 
 ### `exp_a/trajectories/` — графики траекторий всех 7 сценариев (вид сверху)
 `single_on_line` · `two_offset` · `three_corridor` · `barrier_with_gap` ·

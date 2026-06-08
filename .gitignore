@@ -35,9 +35,11 @@ outputs/
 results/
 *.avi
 *.mp4
-# Исключение: demo-ролики для статьи DCCN коммитим
-!videos/
-!videos/**/*.mp4
+# Исключение: demo-ролики экспериментов для статьи DCCN коммитим
+!media/
+!media/**/*.mp4
+!media/**/*.gif
+!media/**/*.avi
 
 
 # OS

@@ -2,7 +2,7 @@
 
 Воспроизводимая реализация к статье **DCCN-2026** «Иерархическая когнитивная
 архитектура управления для мобильной робототехнической платформы».
-Поданный текст: [`paper/latex/paper.pdf`](paper/latex/paper.pdf).
+Поданная (8-страничная) версия: [`paper/latex/paper_8p.pdf`](paper/latex/paper_8p.pdf).
 
 Рассматривается навигация мобильного агента с дифференциальным приводом (Husky)
 к цели на плоской арене с препятствиями известной геометрии и переменным трением.
@@ -57,17 +57,18 @@
 3 поверхности (NORMAL/ICE/SAND) × {empty, with_obstacle} × 5 режимов (табл. 2).
 Принципиальный результат: `ICE + obstacle` решается **только** полной тройкой
 `TD3+MapAvoid+LQR` — без среднего уровня робот проскальзывает при обходе.
-Прогонный скрипт Эксп. B (`exp_b_global_surfaces.py`) и обученные модели — в
-приватном репозитории `dccn-experiments` (он же содержит задел статьи 2,
-стратегический планировщик).
+Прогонный скрипт Эксп. B — [`experiments/exp_b_global_surfaces.py`](experiments/exp_b_global_surfaces.py)
+(среда поверхностей — [`envs/husky_surface_env.py`](envs/husky_surface_env.py)); используется
+та же обученная модель TD3, что и в Эксп. A.
 
 ## Воспроизводимость
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt        # точные версии — requirements-lock.txt
-python experiments/exp_a_final.py      # таблица 1
-python experiments/exp_a_video_mp4.py  # видео + траектории (рис. 2)
+python experiments/exp_a_final.py            # таблица 1 (геометрия препятствий)
+python experiments/exp_b_global_surfaces.py  # таблица 2 (поверхности NORMAL/ICE/SAND)
+python experiments/exp_a_video_mp4.py        # видео + траектории (рис. 2)
 pytest test_lqr_unit.py test_husky_obstacle_smoke.py
 ```
 

@@ -45,12 +45,13 @@
 <img src="paper/latex/figures/traj_barrier_with_gap.png" width="32%"/>
 </p>
 
-Видеодемонстрация пяти режимов — [`videos/exp_a/`](videos/exp_a/):
-[TD3](videos/exp_a/01_TD3_only.mp4) ·
-[+LQR](videos/exp_a/02_TD3_LQR.mp4) ·
-[+LidarAvoid](videos/exp_a/03_TD3_LidarAvoid.mp4) ·
-[+MapAvoid](videos/exp_a/04_TD3_MapAvoid.mp4) ·
-[+MapAvoid+LQR](videos/exp_a/05_TD3_MapAvoid_LQR.mp4).
+Видеодемонстрация пяти режимов — [`media/exp_a/videos_main/`](media/exp_a/videos_main/):
+[TD3](media/exp_a/videos_main/01_TD3_only.mp4) ·
+[+LQR](media/exp_a/videos_main/02_TD3_LQR.mp4) ·
+[+LidarAvoid](media/exp_a/videos_main/03_TD3_LidarAvoid.mp4) ·
+[+MapAvoid](media/exp_a/videos_main/04_TD3_MapAvoid.mp4) ·
+[+MapAvoid+LQR](media/exp_a/videos_main/05_TD3_MapAvoid_LQR.mp4).
+Все видео и графики траекторий (оба эксперимента, все сценарии) — в [`media/`](media/), путеводитель: [`media/README.md`](media/README.md).
 
 ### Эксперимент B — свойства поверхности
 
@@ -60,6 +61,7 @@
 Прогонный скрипт Эксп. B — [`experiments/exp_b_global_surfaces.py`](experiments/exp_b_global_surfaces.py)
 (среда поверхностей — [`envs/husky_surface_env.py`](envs/husky_surface_env.py)); используется
 та же обученная модель TD3, что и в Эксп. A.
+Видео и графики траекторий Эксп. B — в [`media/exp_b/`](media/exp_b/) (videos_global, videos_strips, plots_global, plots_strips).
 
 ## Воспроизводимость
 
